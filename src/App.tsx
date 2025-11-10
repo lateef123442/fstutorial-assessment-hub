@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import TakeAssessment from "./components/assessment/TakeAssessment";
 
 const queryClient = new QueryClient();
 
@@ -20,7 +21,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/take-assessment/:attemptId" element={<TakeAssessment />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

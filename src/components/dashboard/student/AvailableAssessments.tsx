@@ -48,8 +48,7 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
     if (error) {
       console.error(error);
     } else {
-      // Navigate to assessment taking page (to be implemented)
-      console.log("Start assessment", attempt.id);
+      navigate(`/take-assessment/${attempt.id}`);
     }
   };
 
