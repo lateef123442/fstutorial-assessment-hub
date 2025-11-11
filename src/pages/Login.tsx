@@ -23,6 +23,12 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      // Basic password strength check for sign-up
+      if (isSignUp && formData.password.length < 8) {
+        toast.error("Password must be at least 8 characters long.");
+        return;
+      }
+
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
           email: formData.email,
@@ -48,6 +54,7 @@ const Login = () => {
         navigate("/");
       }
     } catch (error: any) {
+      console.error("Auth error:", error);  // Improved logging for debugging
       toast.error(error.message || "An error occurred");
     } finally {
       setIsLoading(false);
@@ -94,6 +101,7 @@ const Login = () => {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
+                  autoComplete="email"  // Added for better autofill
                 />
               </div>
               <div className="space-y-2">
@@ -104,6 +112,7 @@ const Login = () => {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   required
+                  autoComplete="current-password"  // Added to fix DOM warnings
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
