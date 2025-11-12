@@ -24,17 +24,56 @@ const ManageTeachers = () => {
   }, []);
 
   const fetchTeachers = async () => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        profiles(full_name, email),
-        teacher_subjects(subject_id, subjects(name))
-      `)
-      .eq("role", "teacher");
+    try {
+      // First get all teacher user_ids
+      const { data: teacherRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "teacher");
 
-    if (!error && data) {
-      setTeachers(data);
+      if (rolesError) throw rolesError;
+
+      if (!teacherRoles || teacherRoles.length === 0) {
+        setTeachers([]);
+        setLoading(false);
+        return;
+      }
+
+      // Then get profiles for those user_ids
+      const teacherIds = teacherRoles.map(t => t.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", teacherIds);
+
+      if (profilesError) throw profilesError;
+
+      // Get teacher subjects
+      const { data: teacherSubjects, error: subjectsError } = await supabase
+        .from("teacher_subjects")
+        .select(`
+          teacher_id,
+          subject_id,
+          subjects(id, name)
+        `)
+        .in("teacher_id", teacherIds);
+
+      if (subjectsError) throw subjectsError;
+
+      // Combine the data
+      const combinedData = profiles?.map(profile => ({
+        user_id: profile.id,
+        profiles: {
+          full_name: profile.full_name,
+          email: profile.email
+        },
+        teacher_subjects: teacherSubjects?.filter(ts => ts.teacher_id === profile.id) || []
+      })) || [];
+
+      setTeachers(combinedData);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+      toast.error("Failed to load teachers");
     }
     setLoading(false);
   };
