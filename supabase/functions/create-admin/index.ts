@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT and check if user is admin
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -22,6 +31,36 @@ serve(async (req) => {
         }
       }
     );
+
+    // Verify the JWT token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: verifyError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (verifyError || !user) {
+      console.error('Auth verification failed:', verifyError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    // Check if the requesting user is an admin
+    const { data: roleData, error: checkRoleError } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+
+    if (checkRoleError || !roleData) {
+      console.error('Role verification failed:', checkRoleError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: Admin access required' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+
+    console.log(`Admin ${user.email} is creating a new admin user`);
 
     const { email, password, fullName } = await req.json();
 
@@ -37,9 +76,9 @@ serve(async (req) => {
       }
     });
 
-    if (authError) {
+    if (authError || !authData?.user) {
       console.error('Auth error:', authError);
-      throw authError;
+      throw authError || new Error('User creation failed');
     }
 
     console.log('Auth user created:', authData.user.id);
@@ -61,16 +100,16 @@ serve(async (req) => {
     console.log('Profile created');
 
     // Assign admin role
-    const { error: roleError } = await supabaseAdmin
+    const { error: assignRoleError } = await supabaseAdmin
       .from('user_roles')
       .insert({
         user_id: authData.user.id,
         role: 'admin'
       });
 
-    if (roleError) {
-      console.error('Role error:', roleError);
-      throw roleError;
+    if (assignRoleError) {
+      console.error('Role error:', assignRoleError);
+      throw assignRoleError;
     }
 
     console.log('Admin role assigned');
