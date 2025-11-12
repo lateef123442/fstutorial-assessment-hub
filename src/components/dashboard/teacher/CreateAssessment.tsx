@@ -162,7 +162,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
                   <SelectTrigger>
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background z-50">
                     {subjects.map((subject) => (
                       <SelectItem key={subject.id} value={subject.id}>
                         {subject.name}
@@ -269,7 +269,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-background z-50">
                           <SelectItem value="A">A</SelectItem>
                           <SelectItem value="B">B</SelectItem>
                           <SelectItem value="C">C</SelectItem>
