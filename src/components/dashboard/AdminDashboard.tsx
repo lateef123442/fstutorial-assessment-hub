@@ -50,7 +50,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
           <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="teachers" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Teachers
+              Subjects
             </TabsTrigger>
             <TabsTrigger value="students" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
@@ -58,7 +58,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="subjects" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
-              Subjects
+              Teachers
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
