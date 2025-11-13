@@ -32,19 +32,32 @@ const ManageSubjects = () => {
     setLoading(false);
   };
 
-  const fetchTeachers = async () => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select("user_id, profiles(full_name, email)")
-      .eq("role", "teacher");
-    
-    if (error) {
-      console.error("Error fetching teachers:", error);
-    } else if (data) {
-      console.log("Teachers fetched:", data);
-      setTeachers(data);
-    }
-  };
+  const [teachers, setTeachers] = useState([]);
+const [assignData, setAssignData] = useState({ teacherId: "" });
+
+const fetchTeachers = async () => {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select(`
+      user_id,
+      profiles:profiles (
+        full_name,
+        email
+      )
+    `)
+    .eq("role", "teacher");
+
+  if (error) {
+    console.error("Error fetching teachers:", error);
+  } else if (data) {
+    console.log("✅ Teachers fetched:", data);
+    setTeachers(data);
+  }
+};
+
+useEffect(() => {
+  fetchTeachers();
+}, []);
 
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,28 +137,30 @@ const ManageSubjects = () => {
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="select-teacher">Select Teacher</Label>
-                <Select 
-                  value={assignData.teacherId} 
-                  onValueChange={(value) => {
-                    console.log("Teacher selected:", value);
-                    setAssignData({ ...assignData, teacherId: value });
-                  }}
-                >
-                  <SelectTrigger id="select-teacher">
-                    <SelectValue placeholder="Choose teacher" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teachers.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No teachers available</div>
-                    ) : (
-                      teachers.map((teacher) => (
-                        <SelectItem key={teacher.user_id} value={teacher.user_id}>
-                          {teacher.profiles?.full_name || teacher.profiles?.email || "Unknown"}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+                <Select
+  value={assignData.teacherId}
+  onValueChange={(value) => {
+    console.log("Teacher selected:", value);
+    setAssignData({ ...assignData, teacherId: value });
+  }}
+>
+  <SelectTrigger id="select-teacher">
+    <SelectValue placeholder="Choose teacher" />
+  </SelectTrigger>
+  <SelectContent>
+    {teachers.length === 0 ? (
+      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+        No teachers available
+      </div>
+    ) : (
+      teachers.map((teacher) => (
+        <SelectItem key={teacher.user_id} value={teacher.user_id}>
+          {teacher.profiles?.full_name || teacher.profiles?.email || "Unknown"}
+        </SelectItem>
+      ))
+    )}
+  </SelectContent>
+</Select>
               </div>
               <div>
                 <Label htmlFor="select-subject">Select Subject</Label>
