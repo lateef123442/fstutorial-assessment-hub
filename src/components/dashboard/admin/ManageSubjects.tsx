@@ -49,27 +49,23 @@ const ManageTeachers = () => {
 
       if (profilesError) throw profilesError; 
 
-      // Get teacher subjects
-      const { data: teacherSubjects, error: subjectsError } = await supabase
-        .from("teacher_subjects")
-        .select(`
-          teacher_id,
-          subject_id,
-          subjects(id, name)
-        `)
-        .in("teacher_id", teacherIds); 
+      // Get teacher subjects
+      const { data: teacherSubjects, error: subjectsError } = await supabase
+        .from("teacher_subjects")
+        .select("teacher_id, subject_id, subjects(id, name)")
+        .in("teacher_id", teacherIds); 
 
-      if (subjectsError) throw subjectsError; 
+      if (subjectsError) throw subjectsError; 
 
-      // Combine the data
-      const combinedData = profiles?.map(profile => ({
-        user_id: profile.id,
-        profiles: {
-          full_name: profile.full_name,
-          email: profile.email
-        },
-        teacher_subjects: teacherSubjects?.filter(ts => ts.teacher_id === profile.id) || []
-      })) || []; 
+      // Combine the data
+      const combinedData = profiles?.map(profile => ({
+        user_id: profile.id,
+        profiles: {
+          full_name: profile.full_name,
+          email: profile.email
+        },
+        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || []
+      })) || [];
 
       setTeachers(combinedData);
     } catch (error) {
@@ -165,24 +161,59 @@ const ManageTeachers = () => {
         </CardContent>
       </Card> 
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Teachers</CardTitle>
-          <CardDescription>Manage existing teachers</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {teachers.map((teacher) => (
-              <div key={teacher.user_id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-semibold">{teacher.profiles?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{teacher.profiles?.email}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>All Teachers</CardTitle>
+          <CardDescription>Manage existing teachers and their subjects</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {teachers.map((teacher) => (
+              <div key={teacher.user_id} className="p-4 border rounded-lg">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-semibold">{teacher.profiles?.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{teacher.profiles?.email}</p>
+                    {teacher.teacher_subjects && teacher.teacher_subjects.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Assigned Subjects:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {teacher.teacher_subjects.map((ts: any) => (
+                            <span key={ts.subject_id} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
+                              {ts.subjects?.name || 'Unknown'}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={async () => {
+                      if (window.confirm(`Delete teacher ${teacher.profiles?.full_name}?`)) {
+                        const { error } = await supabase
+                          .from("user_roles")
+                          .delete()
+                          .eq("user_id", teacher.user_id);
+                        
+                        if (error) {
+                          toast.error("Failed to delete teacher");
+                        } else {
+                          toast.success("Teacher deleted successfully");
+                          fetchTeachers();
+                        }
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }; 

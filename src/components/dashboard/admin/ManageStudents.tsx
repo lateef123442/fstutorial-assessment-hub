@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, Edit } from "lucide-react";
 
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -14,6 +14,8 @@ const ManageStudents = () => {
     email: "",
     fullName: "",
   });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState({ full_name: "", email: "" });
 
   useEffect(() => {
     fetchStudents();
@@ -80,6 +82,45 @@ const ManageStudents = () => {
     }
   };
 
+  const handleDelete = async (userId: string) => {
+    if (window.confirm("Delete this student? This will remove all their data.")) {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (error) {
+        toast.error("Failed to delete student");
+      } else {
+        toast.success("Student deleted successfully");
+        fetchStudents();
+      }
+    }
+  };
+
+  const handleEdit = (student: any) => {
+    setEditingId(student.user_id);
+    setEditData({
+      full_name: student.profiles?.full_name || "",
+      email: student.profiles?.email || ""
+    });
+  };
+
+  const handleSaveEdit = async (userId: string) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: editData.full_name })
+      .eq("id", userId);
+
+    if (error) {
+      toast.error("Failed to update student");
+    } else {
+      toast.success("Student updated successfully");
+      setEditingId(null);
+      fetchStudents();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -126,11 +167,35 @@ const ManageStudents = () => {
         <CardContent>
           <div className="space-y-4">
             {students.map((student) => (
-              <div key={student.user_id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <p className="font-semibold">{student.profiles?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{student.profiles?.email}</p>
-                </div>
+              <div key={student.user_id} className="p-4 border rounded-lg">
+                {editingId === student.user_id ? (
+                  <div className="space-y-4">
+                    <Input
+                      value={editData.full_name}
+                      onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
+                      placeholder="Full Name"
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => handleSaveEdit(student.user_id)}>Save</Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{student.profiles?.full_name}</p>
+                      <p className="text-sm text-muted-foreground">{student.profiles?.email}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleEdit(student)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(student.user_id)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
