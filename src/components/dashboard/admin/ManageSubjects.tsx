@@ -12,10 +12,12 @@ const ManageSubjects = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
   });
+
   const [assignData, setAssignData] = useState({
     teacherId: "",
     subjectId: "",
@@ -26,41 +28,44 @@ const ManageSubjects = () => {
     fetchTeachers();
   }, []);
 
+  // ✅ Fetch all subjects
   const fetchSubjects = async () => {
     const { data, error } = await supabase.from("subjects").select("*");
-    if (!error && data) setSubjects(data);
+    if (error) {
+      console.error("Error fetching subjects:", error);
+      toast.error("Failed to fetch subjects");
+    } else {
+      setSubjects(data || []);
+    }
     setLoading(false);
   };
 
-  const [teachers, setTeachers] = useState([]);
-const [assignData, setAssignData] = useState({ teacherId: "" });
+  // ✅ Fetch all teachers with profile details
+  const fetchTeachers = async () => {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select(`
+        user_id,
+        profiles:profiles (
+          full_name,
+          email
+        )
+      `)
+      .eq("role", "teacher");
 
-const fetchTeachers = async () => {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select(`
-      user_id,
-      profiles:profiles (
-        full_name,
-        email
-      )
-    `)
-    .eq("role", "teacher");
+    if (error) {
+      console.error("Error fetching teachers:", error);
+      toast.error("Failed to fetch teachers");
+    } else {
+      console.log("✅ Teachers fetched:", data);
+      setTeachers(data || []);
+    }
+  };
 
-  if (error) {
-    console.error("Error fetching teachers:", error);
-  } else if (data) {
-    console.log("✅ Teachers fetched:", data);
-    setTeachers(data);
-  }
-};
-
-useEffect(() => {
-  fetchTeachers();
-}, []);
-
+  // ✅ Add new subject
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const { error } = await supabase.from("subjects").insert(formData);
 
     if (error) {
@@ -72,6 +77,7 @@ useEffect(() => {
     }
   };
 
+  // ✅ Assign teacher to subject
   const handleAssignTeacher = async () => {
     if (!assignData.teacherId || !assignData.subjectId) {
       toast.error("Please select both teacher and subject");
@@ -93,6 +99,7 @@ useEffect(() => {
 
   return (
     <div className="space-y-6">
+      {/* Add New Subject */}
       <Card>
         <CardHeader>
           <CardTitle>Add New Subject</CardTitle>
@@ -127,6 +134,7 @@ useEffect(() => {
         </CardContent>
       </Card>
 
+      {/* Assign Teacher to Subject */}
       <Card>
         <CardHeader>
           <CardTitle>Assign Teacher to Subject</CardTitle>
@@ -135,37 +143,40 @@ useEffect(() => {
         <CardContent>
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
+              {/* Teacher Dropdown */}
               <div>
                 <Label htmlFor="select-teacher">Select Teacher</Label>
                 <Select
-  value={assignData.teacherId}
-  onValueChange={(value) => {
-    console.log("Teacher selected:", value);
-    setAssignData({ ...assignData, teacherId: value });
-  }}
->
-  <SelectTrigger id="select-teacher">
-    <SelectValue placeholder="Choose teacher" />
-  </SelectTrigger>
-  <SelectContent>
-    {teachers.length === 0 ? (
-      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-        No teachers available
-      </div>
-    ) : (
-      teachers.map((teacher) => (
-        <SelectItem key={teacher.user_id} value={teacher.user_id}>
-          {teacher.profiles?.full_name || teacher.profiles?.email || "Unknown"}
-        </SelectItem>
-      ))
-    )}
-  </SelectContent>
-</Select>
+                  value={assignData.teacherId}
+                  onValueChange={(value) => {
+                    console.log("Teacher selected:", value);
+                    setAssignData({ ...assignData, teacherId: value });
+                  }}
+                >
+                  <SelectTrigger id="select-teacher">
+                    <SelectValue placeholder="Choose teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No teachers available
+                      </div>
+                    ) : (
+                      teachers.map((teacher) => (
+                        <SelectItem key={teacher.user_id} value={teacher.user_id}>
+                          {teacher.profiles?.full_name || teacher.profiles?.email || "Unknown"}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* Subject Dropdown */}
               <div>
                 <Label htmlFor="select-subject">Select Subject</Label>
-                <Select 
-                  value={assignData.subjectId} 
+                <Select
+                  value={assignData.subjectId}
                   onValueChange={(value) => {
                     console.log("Subject selected:", value);
                     setAssignData({ ...assignData, subjectId: value });
@@ -176,7 +187,9 @@ useEffect(() => {
                   </SelectTrigger>
                   <SelectContent>
                     {subjects.length === 0 ? (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">No subjects available</div>
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No subjects available
+                      </div>
                     ) : (
                       subjects.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
@@ -193,6 +206,7 @@ useEffect(() => {
         </CardContent>
       </Card>
 
+      {/* All Subjects */}
       <Card>
         <CardHeader>
           <CardTitle>All Subjects</CardTitle>
