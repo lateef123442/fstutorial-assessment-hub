@@ -1,23 +1,33 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ManageSubjects = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [formData, setFormData] = useState({
     name: "",
     description: "",
   });
-
   const [assignData, setAssignData] = useState({
     teacherId: "",
     subjectId: "",
@@ -28,44 +38,63 @@ const ManageSubjects = () => {
     fetchTeachers();
   }, []);
 
-  // ✅ Fetch all subjects
+  /** Fetch all subjects */
   const fetchSubjects = async () => {
     const { data, error } = await supabase.from("subjects").select("*");
     if (error) {
       console.error("Error fetching subjects:", error);
-      toast.error("Failed to fetch subjects");
+      toast.error("Failed to load subjects");
     } else {
       setSubjects(data || []);
     }
     setLoading(false);
   };
 
-  // ✅ Fetch all teachers with profile details
+  /** ✅ Fixed fetchTeachers to match ManageTeachers logic */
   const fetchTeachers = async () => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        profiles:profiles (
-          full_name,
-          email
-        )
-      `)
-      .eq("role", "teacher");
+    try {
+      // 1️⃣ Get teacher user IDs
+      const { data: teacherRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "teacher");
 
-    if (error) {
+      if (rolesError) throw rolesError;
+
+      if (!teacherRoles || teacherRoles.length === 0) {
+        setTeachers([]);
+        return;
+      }
+
+      // 2️⃣ Get profiles for those teachers
+      const teacherIds = teacherRoles.map((t) => t.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", teacherIds);
+
+      if (profilesError) throw profilesError;
+
+      const combinedData =
+        profiles?.map((profile) => ({
+          user_id: profile.id,
+          profiles: {
+            full_name: profile.full_name,
+            email: profile.email,
+          },
+        })) || [];
+
+      setTeachers(combinedData);
+      console.log("✅ Teachers loaded:", combinedData);
+    } catch (error) {
       console.error("Error fetching teachers:", error);
-      toast.error("Failed to fetch teachers");
-    } else {
-      console.log("✅ Teachers fetched:", data);
-      setTeachers(data || []);
+      toast.error("Failed to load teachers");
     }
   };
 
-  // ✅ Add new subject
+  /** Add new subject */
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const { error } = await supabase.from("subjects").insert(formData);
 
     if (error) {
@@ -77,7 +106,7 @@ const ManageSubjects = () => {
     }
   };
 
-  // ✅ Assign teacher to subject
+  /** Assign teacher to subject */
   const handleAssignTeacher = async () => {
     if (!assignData.teacherId || !assignData.subjectId) {
       toast.error("Please select both teacher and subject");
@@ -99,7 +128,7 @@ const ManageSubjects = () => {
 
   return (
     <div className="space-y-6">
-      {/* Add New Subject */}
+      {/* Add Subject */}
       <Card>
         <CardHeader>
           <CardTitle>Add New Subject</CardTitle>
@@ -113,7 +142,9 @@ const ManageSubjects = () => {
                 <Input
                   id="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -122,7 +153,9 @@ const ManageSubjects = () => {
                 <Input
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -134,7 +167,7 @@ const ManageSubjects = () => {
         </CardContent>
       </Card>
 
-      {/* Assign Teacher to Subject */}
+      {/* Assign Teacher */}
       <Card>
         <CardHeader>
           <CardTitle>Assign Teacher to Subject</CardTitle>
@@ -143,15 +176,13 @@ const ManageSubjects = () => {
         <CardContent>
           <div className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              {/* Teacher Dropdown */}
               <div>
                 <Label htmlFor="select-teacher">Select Teacher</Label>
                 <Select
                   value={assignData.teacherId}
-                  onValueChange={(value) => {
-                    console.log("Teacher selected:", value);
-                    setAssignData({ ...assignData, teacherId: value });
-                  }}
+                  onValueChange={(value) =>
+                    setAssignData({ ...assignData, teacherId: value })
+                  }
                 >
                   <SelectTrigger id="select-teacher">
                     <SelectValue placeholder="Choose teacher" />
@@ -163,24 +194,26 @@ const ManageSubjects = () => {
                       </div>
                     ) : (
                       teachers.map((teacher) => (
-                        <SelectItem key={teacher.user_id} value={teacher.user_id}>
-                          {teacher.profiles?.full_name || teacher.profiles?.email || "Unknown"}
+                        <SelectItem
+                          key={teacher.user_id}
+                          value={teacher.user_id}
+                        >
+                          {teacher.profiles?.full_name ||
+                            teacher.profiles?.email ||
+                            "Unknown"}
                         </SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Subject Dropdown */}
               <div>
                 <Label htmlFor="select-subject">Select Subject</Label>
                 <Select
                   value={assignData.subjectId}
-                  onValueChange={(value) => {
-                    console.log("Subject selected:", value);
-                    setAssignData({ ...assignData, subjectId: value });
-                  }}
+                  onValueChange={(value) =>
+                    setAssignData({ ...assignData, subjectId: value })
+                  }
                 >
                   <SelectTrigger id="select-subject">
                     <SelectValue placeholder="Choose subject" />
@@ -217,7 +250,9 @@ const ManageSubjects = () => {
             {subjects.map((subject) => (
               <div key={subject.id} className="p-4 border rounded-lg">
                 <p className="font-semibold">{subject.name}</p>
-                <p className="text-sm text-muted-foreground">{subject.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {subject.description}
+                </p>
               </div>
             ))}
           </div>
