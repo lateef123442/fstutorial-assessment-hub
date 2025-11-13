@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
+import { notifyUserAction } from "@/lib/emailNotifications";
 
 interface CreateAssessmentProps {
   teacherId: string;
@@ -114,6 +115,24 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
         .insert(questionsWithAssessmentId);
 
       if (questionsError) throw questionsError;
+
+      const { data: students } = await supabase
+        .from("user_roles")
+        .select("user_id, profiles(full_name, email)")
+        .eq("role", "student");
+
+      if (students) {
+        students.forEach((student: any) => {
+          if (student.profiles) {
+            notifyUserAction(
+              student.profiles.email,
+              student.profiles.full_name,
+              "assessment_created",
+              `A new assessment "${formData.title}" has been created and is now available for you to take.`
+            );
+          }
+        });
+      }
 
       toast.success("Assessment created successfully!");
       setFormData({
