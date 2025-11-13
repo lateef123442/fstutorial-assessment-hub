@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { notifyUserAction } from "@/lib/emailNotifications";
 
 const ManageTeachers = () => {
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -80,38 +81,47 @@ const ManageTeachers = () => {
     if (data) setSubjects(data);
   }; 
 
-  const handleAddTeacher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true); 
+  const handleAddTeacher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); 
 
-    try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: { full_name: formData.fullName },
-        },
-      }); 
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: { full_name: formData.fullName },
+        },
+      }); 
 
-      if (authError) throw authError; 
+      if (authError) throw authError; 
 
-      if (authData.user) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: authData.user.id, role: "teacher" }); 
+      if (authData.user) {
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: authData.user.id, role: "teacher" }); 
 
-        if (roleError) throw roleError; 
+        if (roleError) throw roleError; 
 
-        toast.success("Teacher added successfully!");
-        setFormData({ email: "", fullName: "", password: "" });
-        fetchTeachers();
-      }
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }; 
+        toast.success("Teacher added successfully!");
+        
+        // Send welcome email
+        notifyUserAction(
+          formData.email,
+          formData.fullName,
+          "signup",
+          "Your teacher account has been created. You can now log in and start creating assessments."
+        );
+        
+        setFormData({ email: "", fullName: "", password: "" });
+        fetchTeachers();
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">

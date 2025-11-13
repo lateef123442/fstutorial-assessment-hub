@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Trash2, Edit } from "lucide-react";
+import { notifyUserAction } from "@/lib/emailNotifications";
 
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -72,6 +73,14 @@ const ManageStudents = () => {
         toast.success(`Student added! Password: ${password}`, {
           duration: 10000,
         });
+        
+        notifyUserAction(
+          formData.email,
+          formData.fullName,
+          "signup",
+          `Your student account has been created. Your password is: ${password}`
+        );
+        
         setFormData({ email: "", fullName: "" });
         fetchStudents();
       }

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { notifyUserAction } from "@/lib/emailNotifications";
 
 const TakeAssessment = () => {
   const { attemptId } = useParams();
@@ -113,12 +114,21 @@ const TakeAssessment = () => {
         })
         .eq("id", attemptId);
 
-      // Get student email for notification (email feature can be added later)
+      // Get student email for notification
       const { data: attempt } = await supabase
         .from("attempts")
         .select("student_id, profiles!attempts_student_id_fkey(email, full_name)")
         .eq("id", attemptId)
         .single();
+
+      if (attempt?.profiles) {
+        notifyUserAction(
+          attempt.profiles.email,
+          attempt.profiles.full_name,
+          "assessment_submitted",
+          `You scored ${score} out of ${questions.length}. ${passed ? 'Congratulations, you passed!' : 'Keep practicing!'}`
+        );
+      }
 
       console.log("Assessment completed:", {
         student: attempt?.profiles?.full_name,
