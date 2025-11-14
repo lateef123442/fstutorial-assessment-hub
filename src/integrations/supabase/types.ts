@@ -63,6 +63,8 @@ export type Database = {
           id: string
           is_active: boolean | null
           passing_score: number
+          scheduled_date: string | null
+          scheduled_time: string | null
           subject_id: string
           teacher_id: string
           title: string
@@ -73,6 +75,8 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           passing_score: number
+          scheduled_date?: string | null
+          scheduled_time?: string | null
           subject_id: string
           teacher_id: string
           title: string
@@ -83,6 +87,8 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           passing_score?: number
+          scheduled_date?: string | null
+          scheduled_time?: string | null
           subject_id?: string
           teacher_id?: string
           title?: string
@@ -107,6 +113,7 @@ export type Database = {
       attempts: {
         Row: {
           assessment_id: string
+          auto_submitted: boolean | null
           id: string
           passed: boolean | null
           score: number | null
@@ -114,9 +121,11 @@ export type Database = {
           student_id: string
           submitted_at: string | null
           total_questions: number | null
+          violations: number | null
         }
         Insert: {
           assessment_id: string
+          auto_submitted?: boolean | null
           id?: string
           passed?: boolean | null
           score?: number | null
@@ -124,9 +133,11 @@ export type Database = {
           student_id: string
           submitted_at?: string | null
           total_questions?: number | null
+          violations?: number | null
         }
         Update: {
           assessment_id?: string
+          auto_submitted?: boolean | null
           id?: string
           passed?: boolean | null
           score?: number | null
@@ -134,6 +145,7 @@ export type Database = {
           student_id?: string
           submitted_at?: string | null
           total_questions?: number | null
+          violations?: number | null
         }
         Relationships: [
           {

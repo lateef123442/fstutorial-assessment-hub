@@ -29,6 +29,8 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
     subject_id: "",
     duration_minutes: 30,
     passing_score: 70,
+    scheduled_date: "",
+    scheduled_time: "",
   });
   const [questions, setQuestions] = useState<Question[]>([
     {
@@ -140,6 +142,8 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
         subject_id: "",
         duration_minutes: 30,
         passing_score: 70,
+        scheduled_date: "",
+        scheduled_time: "",
       });
       setQuestions([
         {

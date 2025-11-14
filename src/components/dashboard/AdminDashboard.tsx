@@ -2,7 +2,7 @@ import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import ManageTeachers from "./admin/ManageTeachers";
 import ManageStudents from "./admin/ManageStudents";
 import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
+import ViewStudentAttempts from "./admin/ViewStudentAttempts";
 
 interface AdminDashboardProps {
   user: User;
@@ -47,7 +48,15 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
+          <TabsList className="grid w-full grid-cols-5 mb-8">
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="attempts" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Attempts
+            </TabsTrigger>
             <TabsTrigger value="teachers" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               Subjects
@@ -60,11 +69,15 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <BookOpen className="w-4 h-4" />
               Teachers
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="analytics" className="animate-fade-in">
+            <Analytics />
+          </TabsContent>
+
+          <TabsContent value="attempts" className="animate-fade-in">
+            <ViewStudentAttempts />
+          </TabsContent>
 
           <TabsContent value="teachers" className="animate-fade-in">
             <ManageTeachers />

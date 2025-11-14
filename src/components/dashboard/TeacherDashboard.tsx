@@ -1,12 +1,13 @@
 import { User } from "@supabase/supabase-js";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, FileText, LogOut, GraduationCap } from "lucide-react";
+import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import MyAssessments from "./teacher/MyAssessments";
 import CreateAssessment from "./teacher/CreateAssessment";
+import ViewAttempts from "./teacher/ViewAttempts";
 
 interface TeacherDashboardProps {
   user: User;
@@ -42,10 +43,14 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="assessments">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               My Assessments
+            </TabsTrigger>
+            <TabsTrigger value="attempts" className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Student Attempts
             </TabsTrigger>
             <TabsTrigger value="create" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
@@ -55,6 +60,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
 
           <TabsContent value="assessments" className="animate-fade-in">
             <MyAssessments teacherId={user.id} />
+          </TabsContent>
+
+          <TabsContent value="attempts" className="animate-fade-in">
+            <ViewAttempts />
           </TabsContent>
 
           <TabsContent value="create" className="animate-fade-in">

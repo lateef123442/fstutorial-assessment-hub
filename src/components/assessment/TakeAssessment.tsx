@@ -20,6 +20,8 @@ const TakeAssessment = () => {
   const [assessment, setAssessment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [violations, setViolations] = useState(0);
+  const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
     loadAssessment();
@@ -37,6 +39,51 @@ const TakeAssessment = () => {
 
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
+
+  // Security: Monitor page visibility and focus
+  useEffect(() => {
+    const handleViolation = async () => {
+      const newViolations = violations + 1;
+      setViolations(newViolations);
+      
+      // Update violations count in database
+      await supabase
+        .from("attempts")
+        .update({ violations: newViolations })
+        .eq("id", attemptId);
+
+      if (newViolations >= 3) {
+        // Auto-submit on 3rd violation
+        toast.error("Too many violations! Assessment auto-submitted.");
+        handleSubmit(true);
+      } else {
+        setShowWarning(true);
+        toast.warning(`Warning ${newViolations}/3: Don't leave the exam page!`);
+        setTimeout(() => setShowWarning(false), 3000);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && !submitting) {
+        handleViolation();
+      }
+    };
+
+    const handleBlur = () => {
+      if (!submitting) {
+        handleViolation();
+      }
+    };
+
+    // Add event listeners
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [violations, submitting, attemptId]);
 
   const loadAssessment = async () => {
     try {
@@ -79,7 +126,7 @@ const TakeAssessment = () => {
     setAnswers({ ...answers, [questionId]: answer });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (autoSubmitted = false) => {
     if (submitting) return;
     setSubmitting(true);
 
@@ -111,6 +158,7 @@ const TakeAssessment = () => {
           score,
           passed,
           submitted_at: new Date().toISOString(),
+          auto_submitted: autoSubmitted,
         })
         .eq("id", attemptId);
 
@@ -184,6 +232,12 @@ const TakeAssessment = () => {
 
   return (
     <div className="min-h-screen bg-background p-6">
+      {showWarning && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-lg shadow-lg animate-in slide-in-from-top">
+          <p className="font-semibold">⚠️ Warning: Don't leave the exam page!</p>
+          <p className="text-sm">Violations: {violations}/3 - Assessment will auto-submit on 3rd violation</p>
+        </div>
+      )}
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <Card className="mb-6">
@@ -258,7 +312,7 @@ const TakeAssessment = () => {
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={() => handleSubmit(false)} disabled={submitting}>
               {submitting ? "Submitting..." : "Submit Assessment"}
             </Button>
           )}
