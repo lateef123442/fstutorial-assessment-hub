@@ -30,7 +30,21 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setAssessments(data);
+      // Filter by schedule
+      const now = new Date();
+      const available = data.filter((assessment) => {
+        if (!assessment.scheduled_date) return true;
+        
+        const scheduledDateTime = new Date(assessment.scheduled_date);
+        if (assessment.scheduled_time) {
+          const [hours, minutes] = assessment.scheduled_time.split(":");
+          scheduledDateTime.setHours(parseInt(hours), parseInt(minutes));
+        }
+        
+        return now >= scheduledDateTime;
+      });
+      
+      setAssessments(available);
     }
     setLoading(false);
   };
