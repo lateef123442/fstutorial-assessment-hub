@@ -52,13 +52,13 @@ const TakeAssessment = () => {
         .update({ violations: newViolations })
         .eq("id", attemptId);
 
-      if (newViolations >= 3) {
-        // Auto-submit on 3rd violation
-        toast.error("Too many violations! Assessment auto-submitted.");
+      if (newViolations >= 1) {
+        // Auto-submit on 1st violation
+        toast.error("Violation detected! Assessment auto-submitted.");
         handleSubmit(true);
       } else {
         setShowWarning(true);
-        toast.warning(`Warning ${newViolations}/3: Don't leave the exam page!`);
+        toast.warning(`Warning: Don't leave the exam page!`);
         setTimeout(() => setShowWarning(false), 3000);
       }
     };
@@ -170,11 +170,14 @@ const TakeAssessment = () => {
         .single();
 
       if (attempt?.profiles) {
+        const resultStatus = passed ? "Passed" : "Failed";
+        const resultMessage = `You scored ${score} out of ${questions.length} (${Math.round((score / questions.length) * 100)}%). ${passed ? 'Congratulations, you passed!' : 'Keep practicing!'}`;
+        
         notifyUserAction(
           attempt.profiles.email,
           attempt.profiles.full_name,
-          "assessment_submitted",
-          `You scored ${score} out of ${questions.length}. ${passed ? 'Congratulations, you passed!' : 'Keep practicing!'}`
+          "results_available",
+          resultMessage
         );
       }
 
@@ -235,7 +238,7 @@ const TakeAssessment = () => {
       {showWarning && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-destructive text-destructive-foreground px-6 py-4 rounded-lg shadow-lg animate-in slide-in-from-top">
           <p className="font-semibold">⚠️ Warning: Don't leave the exam page!</p>
-          <p className="text-sm">Violations: {violations}/3 - Assessment will auto-submit on 3rd violation</p>
+          <p className="text-sm">Any violation will result in automatic submission</p>
         </div>
       )}
       <div className="max-w-4xl mx-auto">

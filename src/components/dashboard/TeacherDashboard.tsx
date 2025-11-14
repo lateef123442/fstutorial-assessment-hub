@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import MyAssessments from "./teacher/MyAssessments";
 import CreateAssessment from "./teacher/CreateAssessment";
 import ViewAttempts from "./teacher/ViewAttempts";
+import ScheduleReminders from "./teacher/ScheduleReminders";
 
 interface TeacherDashboardProps {
   user: User;
@@ -67,7 +68,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="create" className="animate-fade-in">
-            <CreateAssessment teacherId={user.id} />
+            <div className="space-y-6">
+              <CreateAssessment teacherId={user.id} />
+              <ScheduleReminders />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
