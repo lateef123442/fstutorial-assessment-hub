@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -10,283 +11,196 @@ import { toast } from "sonner";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 
-/**
- * TakeAssessment.tsx
- *
- * - Auto-submits when user leaves/minimizes/changes tab/refreshes/closes
- * - Prevents double submits using refs
- * - Prevents retake: checks attempt.submitted_at || attempt.locked on load
- * - Locks attempt on submit (locked: true)
- *
- * NOTE: Backend/database enforcement is required to fully prevent retakes.
- * Make sure your attempts table has UNIQUE(student_id, assessment_id) and a `locked` column.
- */
-
 const TakeAssessment = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
 
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<{ [key: string]: string }>({});
+  const [answers, setAnswers] = useState({});
+  const [assessment, setAssessment] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [assessment, setAssessment] = useState<any>(null);
+
   const [loading, setLoading] = useState(true);
-  const [violations, setViolations] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // submitting state handled via ref to avoid stale closures in event handlers
-  const submittingRef = useRef(false);
-  const violationsRef = useRef(0);
-  const mountedRef = useRef(false);
+  // ============================================
+  // PUBLIC: Load Attempt + Questions
+  // ============================================
 
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // keep refs in sync with state
-  useEffect(() => {
-    violationsRef.current = violations;
-  }, [violations]);
-
-  // LOAD ASSESSMENT + PREVENT RETAKE
-  useEffect(() => {
+    if (!attemptId) {
+      toast.error("Invalid assessment link");
+      navigate("/dashboard");
+      return;
+    }
     loadAssessment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attemptId]);
 
   const loadAssessment = async () => {
     try {
-      const { data: attempt, error: attemptError } = await supabase
+      // Fetch attempt ONLY if it belongs to the logged-in user
+      const { data: attempt, error } = await supabase
         .from("attempts")
         .select("*, assessments(*), profiles(full_name, email)")
         .eq("id", attemptId)
         .single();
 
-      if (attemptError) throw attemptError;
+      if (error || !attempt) {
+        toast.error("Attempt not found");
+        navigate("/dashboard");
+        return;
+      }
 
-      // Prevent retake if already submitted or locked
-      if (attempt.submitted_at || attempt.locked) {
-        toast.error("You have already taken this assessment.");
+      // Prevent retake
+      if (attempt.submitted_at) {
+        toast.error("You have already completed this assessment");
         navigate("/dashboard");
         return;
       }
 
       setAssessment(attempt.assessments);
-      setTimeRemaining((attempt.assessments?.duration_minutes || 0) * 60);
 
-      const { data: questionsData, error: questionsError } = await supabase
+      setTimeRemaining(attempt.assessments.duration_minutes * 60);
+
+      const { data: questionsData } = await supabase
         .from("questions")
         .select("*")
         .eq("assessment_id", attempt.assessment_id)
         .order("created_at");
 
-      if (questionsError) throw questionsError;
+      setQuestions(questionsData);
 
-      setQuestions(questionsData || []);
-
-      // Update total_questions on attempt record (best effort)
-      await supabase.from("attempts").update({ total_questions: (questionsData || []).length }).eq("id", attemptId);
+      await supabase
+        .from("attempts")
+        .update({ total_questions: questionsData.length })
+        .eq("id", attemptId);
 
       setLoading(false);
     } catch (err) {
-      console.error("loadAssessment error:", err);
       toast.error("Failed to load assessment");
       navigate("/dashboard");
     }
   };
 
+  // ============================================
   // TIMER
+  // ============================================
+
   useEffect(() => {
     if (timeRemaining <= 0 && assessment) {
-      // try to auto-submit when time is up
-      attemptAutoSubmit();
+      handleSubmit(true);
       return;
     }
 
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => Math.max(0, prev - 1));
+      setTimeRemaining((prev) => Math.max(prev - 1, 0));
     }, 1000);
 
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRemaining, assessment]);
 
-  const attemptAutoSubmit = async () => {
-    if (submittingRef.current) return;
-    await handleSubmit(true);
-  };
+  // ============================================
+  // AUTO-SUBMIT WHEN LEAVING OR MINIMIZING
+  // ============================================
 
-  // ANTI-CHEAT: handle visibilitychange, blur, pagehide, beforeunload
   useEffect(() => {
-    if (!attemptId) return;
-
-    const handleViolation = async (reason?: string) => {
-      if (submittingRef.current) return;
-
-      // increment violation counter
-      const newCount = violationsRef.current + 1;
-      violationsRef.current = newCount;
-      if (mountedRef.current) setViolations(newCount);
-
-      // persist violation count (best effort)
-      try {
-        await supabase.from("attempts").update({ violations: newCount }).eq("id", attemptId);
-      } catch (err) {
-        console.warn("Failed to persist violation count:", err);
-      }
-
-      // show a warning and auto-submit
-      setShowWarning(true);
-      toast.error(reason ? `You left the exam (${reason}). Auto-submitting...` : "You left the exam! Auto-submitting...");
-      await handleSubmit(true);
+    const handleLeave = () => {
+      handleSubmit(true);
     };
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") handleViolation("tab hidden / minimized");
-    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) handleLeave();
+    });
 
-    const onBlur = () => handleViolation("window blur");
-    const onPageHide = () => handleViolation("page hide");
-
-    // beforeunload: best-effort synchronous signal (can't rely on async)
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      try {
-        // mark in localStorage as a fallback so other tabs/devices can detect
-        localStorage.setItem(`attempt_submitting_${attemptId}`, "1");
-      } catch (err) {
-        // ignore
-      }
-      // attempt to submit (may not complete)
-      handleViolation("before unload");
-      // show default confirmation (most browsers ignore custom messages)
-      e.preventDefault();
-      e.returnValue = "";
-      return "";
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("blur", handleLeave);
 
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("visibilitychange", handleLeave);
+      window.removeEventListener("blur", handleLeave);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attemptId]);
+  }, []);
 
-  const handleAnswerChange = (questionId: string, value: string) => {
+  // ============================================
+  // SAVE ANSWER
+  // ============================================
+
+  const handleAnswerChange = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  // SUBMIT LOGIC (uses submittingRef)
+  // ============================================
+  // SUBMIT
+  // ============================================
+
   const handleSubmit = async (autoSubmitted = false) => {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
+    if (submitting) return;
+    setSubmitting(true);
 
     try {
       let correct = 0;
 
-      // Insert answers
-      const writes = (questions || []).map(async (q) => {
+      // Save answers one by one
+      for (const q of questions) {
         const selected = answers[q.id];
         const isCorrect = selected === q.correct_answer;
         if (isCorrect) correct++;
 
-        return supabase.from("answers").insert({
+        await supabase.from("answers").insert({
           attempt_id: attemptId,
           question_id: q.id,
           selected_answer: selected || null,
           is_correct: isCorrect,
         });
-      });
-
-      await Promise.all(writes);
+      }
 
       const passed = correct >= (assessment?.passing_score || 0);
 
-      // Update attempt: score, passed, submitted_at, locked
-      await supabase
+      // Finalize the attempt
+      const { error: updateErr } = await supabase
         .from("attempts")
         .update({
           score: correct,
           passed,
           submitted_at: new Date().toISOString(),
           auto_submitted: autoSubmitted,
-          locked: true,
         })
-        .eq("id", attemptId);
+        .eq("id", attemptId)
+        .select();
 
-      // notify user (best effort)
-      try {
-        const { data: attempt } = await supabase
-          .from("attempts")
-          .select("profiles(email, full_name)")
-          .eq("id", attemptId)
-          .single();
-
-        if (attempt?.profiles) {
-          const msg = `You scored ${correct}/${(questions || []).length} (${Math.round(
-            ((questions.length && correct) / (questions.length || 1)) * 100
-          )}%).`;
-          notifyUserAction(attempt.profiles.email, attempt.profiles.full_name, "results_available", msg);
-        }
-      } catch (err) {
-        console.warn("Failed to send notification:", err);
+      if (updateErr) {
+        console.log(updateErr);
+        toast.error("Submission blocked by RLS policy");
+        return;
       }
+
+      // Notification email
+      const percentage = Math.round((correct / questions.length) * 100);
+      notifyUserAction(
+        assessment?.profiles?.email,
+        assessment?.profiles?.full_name,
+        "results_available",
+        `You scored ${correct}/${questions.length} (${percentage}%).`
+      );
 
       toast.success("Assessment Submitted!");
+      navigate("/dashboard");
     } catch (err) {
-      console.error("handleSubmit error:", err);
-      toast.error("Failed to submit assessment");
+      console.error(err);
+      toast.error("Failed to submit");
     } finally {
-      submittingRef.current = false;
-      // ensure UI state reflects submission
-      if (mountedRef.current) {
-        // small delay so toast shows before navigation
-        setTimeout(() => navigate("/dashboard"), 600);
-      } else {
-        // if unmounted, still try to navigate
-        try {
-          navigate("/dashboard");
-        } catch (err) {
-          // ignore
-        }
-      }
+      setSubmitting(false);
     }
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, "0")}`;
-  };
+  // ============================================
+  // UI COMPONENTS
+  // ============================================
 
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
-      </div>
-    );
-
-  if (questions.length === 0)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card>
-          <CardHeader>
-            <CardTitle>No Questions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate("/dashboard")}>Go Back</Button>
-          </CardContent>
-        </Card>
+        Loading...
       </div>
     );
 
@@ -295,19 +209,12 @@ const TakeAssessment = () => {
 
   return (
     <div className="min-h-screen p-6">
-      {showWarning && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          ⚠️ Do not leave the page — your exam will be submitted automatically.
-        </div>
-      )}
-
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between">
               <div>
-                <CardTitle>{assessment?.title}</CardTitle>
+                <CardTitle>{assessment.title}</CardTitle>
                 <CardDescription>
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </CardDescription>
@@ -315,54 +222,48 @@ const TakeAssessment = () => {
 
               <div className="flex items-center gap-2 font-bold">
                 <Clock className="w-5 h-5" />
-                <span className={timeRemaining < 60 ? "text-red-500" : ""}>{formatTime(timeRemaining)}</span>
+                {timeRemaining}
               </div>
             </div>
-
             <Progress value={progress} className="mt-3" />
           </CardHeader>
         </Card>
 
-        {/* Question */}
-        <Card className="mb-6">
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle>{q.question_text}</CardTitle>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={answers[q.id] || ""} onValueChange={(v) => handleAnswerChange(q.id, v)}>
-              <div className="space-y-3">
-                {["A", "B", "C", "D"].map((Option) => (
-                  <div key={Option} className="flex items-center gap-3 border p-4 rounded-lg cursor-pointer">
-                    <RadioGroupItem value={Option} id={Option} />
-                    <Label htmlFor={Option}>{q[`option_${Option.toLowerCase()}`]}</Label>
-                  </div>
-                ))}
-              </div>
+            <RadioGroup
+              value={answers[q.id] || ""}
+              onValueChange={(v) => handleAnswerChange(q.id, v)}
+            >
+              {["A", "B", "C", "D"].map((opt) => (
+                <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
+                  <RadioGroupItem value={opt} id={opt} />
+                  <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}`]}</Label>
+                </div>
+              ))}
             </RadioGroup>
           </CardContent>
         </Card>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between mt-6">
           <Button
             onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+            disabled={currentQuestionIndex === 0}
             variant="outline"
-            disabled={currentQuestionIndex === 0 || submittingRef.current}
           >
-            <ChevronLeft className="w-4 h-4 mr-2" /> Previous
+            <ChevronLeft /> Previous
           </Button>
 
-          <span className="text-sm text-muted-foreground">
-            {Object.keys(answers).length} / {questions.length} answered
-          </span>
-
           {currentQuestionIndex < questions.length - 1 ? (
-            <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)} disabled={submittingRef.current}>
-              Next <ChevronRight className="w-4 h-4 ml-2" />
+            <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
+              Next <ChevronRight />
             </Button>
           ) : (
-            <Button onClick={() => handleSubmit(false)} disabled={submittingRef.current}>
-              {submittingRef.current ? "Submitting..." : "Submit Assessment"}
+            <Button onClick={() => handleSubmit(false)} disabled={submitting}>
+              Submit Assessment
             </Button>
           )}
         </div>
