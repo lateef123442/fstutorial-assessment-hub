@@ -1,4 +1,4 @@
-        import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,6 @@ const TakeAssessment = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [violations, setViolations] = useState(0);
-  const [showWarning, setShowWarning] = useState(false);
 
   // LOAD ASSESSMENT + QUESTIONS
   useEffect(() => {
@@ -32,15 +31,15 @@ const TakeAssessment = () => {
     try {
       const { data: attempt, error: attemptError } = await supabase
         .from("attempts")
-        .select("*, assessments(*)")
+        .select("*, assessments(*), profiles(full_name, email)")
         .eq("id", attemptId)
         .single();
 
       if (attemptError) throw attemptError;
 
-      // ❌ Prevent retake
-      if (attempt.submitted_at) {
-        toast.error("You cannot retake this assessment.");
+      // ❗ BLOCK RETAKE
+      if (attempt.submitted_at || attempt.locked) {
+        toast.error("You have already taken this assessment.");
         navigate("/dashboard");
         return;
       }
@@ -84,14 +83,12 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
-  // AUTO-SUBMIT ON LEAVE, MINIMIZE, TAB CHANGE, WINDOW BLUR
+  // STRONG ANTI-CHEAT: TAB SWITCH + MINIMIZE + HIDE + CLOSE
   useEffect(() => {
-    if (!attemptId) return;
-
     const handleViolation = async () => {
       if (submitting) return;
 
-      setViolations((v) => v + 1);
+      setSubmitting(true);
 
       await supabase
         .from("attempts")
@@ -99,33 +96,38 @@ const TakeAssessment = () => {
         .eq("id", attemptId);
 
       toast.error("You left the exam! Auto-submitting...");
-      await handleSubmit(true);
+      handleSubmit(true);
     };
 
-    const visibilityListener = () => {
+    const onVisibilityChange = () => {
       if (document.hidden) handleViolation();
     };
 
-    const blurListener = () => {
-      handleViolation();
-    };
+    const onBlur = () => handleViolation();
+    const onPageHide = () => handleViolation();
 
-    const minimizeListener = () => {
-      if (window.outerHeight < window.innerHeight + 50) {
-        handleViolation();
-      }
-    };
-
-    document.addEventListener("visibilitychange", visibilityListener);
-    window.addEventListener("blur", blurListener);
-    window.addEventListener("resize", minimizeListener);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onPageHide);
 
     return () => {
-      document.removeEventListener("visibilitychange", visibilityListener);
-      window.removeEventListener("blur", blurListener);
-      window.removeEventListener("resize", minimizeListener);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onPageHide);
     };
-  }, [attemptId, submitting, violations]);
+  }, [violations, submitting]);
+
+  // AUTO-SUBMIT ON REFRESH OR TAB CLOSE
+  useEffect(() => {
+    const beforeUnload = (e: any) => {
+      handleSubmit(true);
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, []);
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -164,6 +166,7 @@ const TakeAssessment = () => {
           passed,
           submitted_at: new Date().toISOString(),
           auto_submitted: autoSubmitted,
+          locked: true  // ❗ PREVENT RETAKE
         })
         .eq("id", attemptId);
 
@@ -178,7 +181,12 @@ const TakeAssessment = () => {
           (correct / questions.length) * 100
         )}%).`;
 
-        notifyUserAction(attempt.profiles.email, attempt.profiles.full_name, "results_available", msg);
+        notifyUserAction(
+          attempt.profiles.email,
+          attempt.profiles.full_name,
+          "results_available",
+          msg
+        );
       }
 
       toast.success("Assessment Submitted!");
@@ -222,13 +230,9 @@ const TakeAssessment = () => {
 
   return (
     <div className="min-h-screen p-6">
-      {showWarning && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
-          ⚠️ Do not leave the page!
-        </div>
-      )}
-
       <div className="max-w-4xl mx-auto">
+
+        {/* Header */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex justify-between">
@@ -248,12 +252,16 @@ const TakeAssessment = () => {
           </CardHeader>
         </Card>
 
+        {/* Question */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{q.question_text}</CardTitle>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={answers[q.id] || ""} onValueChange={(v) => handleAnswerChange(q.id, v)}>
+            <RadioGroup
+              value={answers[q.id] || ""}
+              onValueChange={(v) => handleAnswerChange(q.id, v)}
+            >
               <div className="space-y-3">
                 {["A", "B", "C", "D"].map((Option) => (
                   <div key={Option} className="flex items-center gap-3 border p-4 rounded-lg cursor-pointer">
@@ -266,6 +274,7 @@ const TakeAssessment = () => {
           </CardContent>
         </Card>
 
+        {/* Navigation */}
         <div className="flex justify-between items-center">
           <Button
             onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
