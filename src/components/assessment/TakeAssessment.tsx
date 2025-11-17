@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+        import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,13 @@ const TakeAssessment = () => {
         .single();
 
       if (attemptError) throw attemptError;
+
+      // ❌ Prevent retake
+      if (attempt.submitted_at) {
+        toast.error("You cannot retake this assessment.");
+        navigate("/dashboard");
+        return;
+      }
 
       setAssessment(attempt.assessments);
       setTimeRemaining(attempt.assessments.duration_minutes * 60);
@@ -77,37 +84,48 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
-  // ANTI-CHEAT: TAB SWITCH, WINDOW BLUR, PAGE HIDE
+  // AUTO-SUBMIT ON LEAVE, MINIMIZE, TAB CHANGE, WINDOW BLUR
   useEffect(() => {
+    if (!attemptId) return;
+
     const handleViolation = async () => {
-      const count = violations + 1;
-      setViolations(count);
+      if (submitting) return;
+
+      setViolations((v) => v + 1);
 
       await supabase
         .from("attempts")
-        .update({ violations: count })
+        .update({ violations: violations + 1 })
         .eq("id", attemptId);
 
       toast.error("You left the exam! Auto-submitting...");
-      handleSubmit(true);
+      await handleSubmit(true);
     };
 
     const visibilityListener = () => {
-      if (document.hidden && !submitting) handleViolation();
+      if (document.hidden) handleViolation();
     };
 
     const blurListener = () => {
-      if (!submitting) handleViolation();
+      handleViolation();
+    };
+
+    const minimizeListener = () => {
+      if (window.outerHeight < window.innerHeight + 50) {
+        handleViolation();
+      }
     };
 
     document.addEventListener("visibilitychange", visibilityListener);
     window.addEventListener("blur", blurListener);
+    window.addEventListener("resize", minimizeListener);
 
     return () => {
       document.removeEventListener("visibilitychange", visibilityListener);
       window.removeEventListener("blur", blurListener);
+      window.removeEventListener("resize", minimizeListener);
     };
-  }, [violations, submitting]);
+  }, [attemptId, submitting, violations]);
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -204,7 +222,6 @@ const TakeAssessment = () => {
 
   return (
     <div className="min-h-screen p-6">
-      {/* Anti-Cheat Warning */}
       {showWarning && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg">
           ⚠️ Do not leave the page!
@@ -212,7 +229,6 @@ const TakeAssessment = () => {
       )}
 
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex justify-between">
@@ -232,7 +248,6 @@ const TakeAssessment = () => {
           </CardHeader>
         </Card>
 
-        {/* Question */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>{q.question_text}</CardTitle>
@@ -251,7 +266,6 @@ const TakeAssessment = () => {
           </CardContent>
         </Card>
 
-        {/* Navigation */}
         <div className="flex justify-between items-center">
           <Button
             onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
