@@ -86,41 +86,48 @@ const TakeAssessment = () => {
   }, [violations, submitting, attemptId]);
 
   const loadAssessment = async () => {
-    try {
-      const { data: attempt, error: attemptError } = await supabase
-        .from("attempts")
-        .select("*, assessments(*)")
-        .eq("id", attemptId)
-        .single();
+  try {
+    const { data: attempt, error: attemptError } = await supabase
+      .from("attempts")
+      .select("*, assessments(*)")
+      .eq("id", attemptId)
+      .single();
 
-      if (attemptError) throw attemptError;
+    if (attemptError) throw attemptError;
 
-      setAssessment(attempt.assessments);
-      setTimeRemaining(attempt.assessments.duration_minutes * 60);
-
-      const { data: questionsData, error: questionsError } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("assessment_id", attempt.assessment_id)
-        .order("created_at");
-
-      if (questionsError) throw questionsError;
-
-      setQuestions(questionsData);
-      
-      // Update total_questions in attempt
-      await supabase
-        .from("attempts")
-        .update({ total_questions: questionsData.length })
-        .eq("id", attemptId);
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Error loading assessment:", error);
-      toast.error("Failed to load assessment");
+    // 🛑 STOP Student if they already submitted once
+    if (attempt.submitted_at) {
+      toast.error("You have already attempted this assessment.");
       navigate("/dashboard");
+      return;
     }
-  };
+
+    setAssessment(attempt.assessments);
+    setTimeRemaining(attempt.assessments.duration_minutes * 60);
+
+    const { data: questionsData, error: questionsError } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("assessment_id", attempt.assessment_id)
+      .order("created_at");
+
+    if (questionsError) throw questionsError;
+
+    setQuestions(questionsData);
+
+    // Update total_questions
+    await supabase
+      .from("attempts")
+      .update({ total_questions: questionsData.length })
+      .eq("id", attemptId);
+
+    setLoading(false);
+  } catch (error) {
+    console.error("Error loading assessment:", error);
+    toast.error("Failed to load assessment");
+    navigate("/dashboard");
+  }
+};
 
   const handleAnswerChange = (questionId: string, answer: string) => {
     setAnswers({ ...answers, [questionId]: answer });
