@@ -96,12 +96,16 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
     }
 
     try {
+      // Prepare data: set time to null if empty to avoid syntax error
+      const insertData = {
+        ...formData,
+        teacher_id: teacherId,
+        scheduled_time: formData.scheduled_time || null,
+      };
+
       const { data: assessment, error: assessmentError } = await supabase
         .from("assessments")
-        .insert({
-          ...formData,
-          teacher_id: teacherId,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -169,7 +173,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4"> {/* Changed to 3 columns */}
               <div>
                 <Label htmlFor="title">Assessment Title</Label>
                 <Input
@@ -221,6 +225,16 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
                   type="date"
                   value={formData.scheduled_date}
                   onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduled_time">Scheduled Time</Label>
+                <Input
+                  id="scheduled_time"
+                  type="time"
+                  value={formData.scheduled_time}
+                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
                   required
                 />
               </div>
