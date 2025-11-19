@@ -214,7 +214,7 @@ const TakeAssessment = () => {
 
       const percentage = Math.round((correct / questions.length) * 100);
       notifyUserAction(
-        attempt?.profiles?.email, // Fixed: Use attempt.profiles
+        attempt?.profiles?.email,
         attempt?.profiles?.full_name,
         "results_available",
         `You scored ${correct}/${questions.length} (${percentage}%).`
@@ -243,6 +243,7 @@ const TakeAssessment = () => {
 
   const q = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const formatTime = (secs) => `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen p-6">
@@ -259,7 +260,7 @@ const TakeAssessment = () => {
 
               <div className="flex items-center gap-2 font-bold">
                 <Clock className="w-5 h-5" />
-                {timeRemaining}
+                {formatTime(timeRemaining)}
               </div>
             </div>
             <Progress value={progress} className="mt-3" />
