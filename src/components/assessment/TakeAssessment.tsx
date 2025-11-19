@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useBlocker } from "react-router-dom"; // Added useBlocker
+import { useNavigate, useParams, useBlocker } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,7 +39,6 @@ const TakeAssessment = () => {
 
   const loadAssessment = async () => {
     try {
-      // Get current user ID (assuming Supabase auth)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         toast.error("You must be logged in");
@@ -47,12 +46,11 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Fetch attempt ONLY if it belongs to the logged-in user
       const { data: attempt, error } = await supabase
         .from("attempts")
         .select("*, assessments(*), profiles(full_name, email)")
         .eq("id", attemptId)
-        .eq("user_id", user.id) // Ensure ownership
+        .eq("user_id", user.id)
         .single();
 
       if (error || !attempt) {
@@ -61,23 +59,22 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Check for existing submitted attempts for this assessment by the user
+      // Check for existing submitted attempts (allow up to 3)
       const { data: existingAttempts } = await supabase
         .from("attempts")
         .select("id")
         .eq("assessment_id", attempt.assessment_id)
         .eq("user_id", user.id)
-        .not("submitted_at", "is", null); // Only submitted ones
+        .not("submitted_at", "is", null);
 
-      if (existingAttempts && existingAttempts.length > 0) {
-        toast.error("You have already completed this assessment and cannot retake it");
+      if (existingAttempts && existingAttempts.length >= 3) {
+        toast.error("You have reached the maximum attempts (3) for this assessment.");
         navigate("/dashboard");
         return;
       }
 
-      // Prevent retake if this specific attempt is submitted
       if (attempt.submitted_at) {
-        toast.error("You have already completed this assessment");
+        toast.error("This attempt has already been submitted.");
         navigate("/dashboard");
         return;
       }
@@ -126,31 +123,27 @@ const TakeAssessment = () => {
   // BLOCK NAVIGATION AND AUTO-SUBMIT ON LEAVE
   // ============================================
 
-  // Use React Router's useBlocker to prevent navigation (e.g., back button, URL changes)
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     if (currentLocation.pathname !== nextLocation.pathname && !submitting) {
-      // Auto-submit on navigation attempt
       handleSubmit(true);
-      return false; // Block navigation until submission completes
+      return false;
     }
     return true;
   });
 
-  // Handle browser-level leaving (close tab, refresh, etc.)
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (!submitting) {
         handleSubmit(true);
         e.preventDefault();
-        e.returnValue = ""; // Show browser warning
+        e.returnValue = "";
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [submitting]); // Dependency on submitting to avoid loops
+  }, [submitting]);
 
-  // Existing visibility and blur handlers (enhanced to ensure submission)
   useEffect(() => {
     const handleLeave = () => {
       if (!submitting) handleSubmit(true);
@@ -166,7 +159,7 @@ const TakeAssessment = () => {
       document.removeEventListener("visibilitychange", handleLeave);
       window.removeEventListener("blur", handleLeave);
     };
-  }, [submitting]); // Added submitting dependency
+  }, [submitting]);
 
   // ============================================
   // SAVE ANSWER
@@ -187,7 +180,6 @@ const TakeAssessment = () => {
     try {
       let correct = 0;
 
-      // Save answers one by one
       for (const q of questions) {
         const selected = answers[q.id];
         const isCorrect = selected === q.correct_answer;
@@ -203,7 +195,6 @@ const TakeAssessment = () => {
 
       const passed = correct >= (assessment?.passing_score || 0);
 
-      // Finalize the attempt
       const { error: updateErr } = await supabase
         .from("attempts")
         .update({
@@ -221,11 +212,10 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Notification email
       const percentage = Math.round((correct / questions.length) * 100);
       notifyUserAction(
-        assessment?.profiles?.email, // Note: This should be attempt.profiles.email if profiles is on attempt
-        assessment?.profiles?.full_name,
+        attempt?.profiles?.email, // Fixed: Use attempt.profiles
+        attempt?.profiles?.full_name,
         "results_available",
         `You scored ${correct}/${questions.length} (${percentage}%).`
       );
