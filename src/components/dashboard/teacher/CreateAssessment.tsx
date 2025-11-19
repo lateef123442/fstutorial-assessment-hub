@@ -214,6 +214,16 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
                   required
                 />
               </div>
+              <div>
+                <Label htmlFor="scheduled_date">Scheduled Date</Label>
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  required
+                />
+              </div>
             </div>
 
             <div className="space-y-4">
