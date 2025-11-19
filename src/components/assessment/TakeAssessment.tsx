@@ -39,20 +39,49 @@ const TakeAssessment = () => {
 
   const loadAssessment = async () => {
     try {
+      // Get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("You must be logged in to take this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
       // Fetch attempt ONLY if it belongs to the logged-in user
       const { data: attempt, error } = await supabase
         .from("attempts")
         .select("*, assessments(*), profiles(full_name, email)")
         .eq("id", attemptId)
+        .eq("user_id", user.id)  // Ensure the attempt belongs to the current user
         .single();
 
       if (error || !attempt) {
-        toast.error("Attempt not found");
+        toast.error("Attempt not found or access denied");
         navigate("/dashboard");
         return;
       }
 
-      // Prevent retake
+      // Check if the user has already submitted any attempt for this assessment (to enforce "take once")
+      const { data: previousAttempts, error: prevError } = await supabase
+        .from("attempts")
+        .select("id")
+        .eq("assessment_id", attempt.assessment_id)
+        .eq("user_id", user.id)
+        .not("submitted_at", "is", null);  // Only count submitted attempts
+
+      if (prevError) {
+        toast.error("Failed to verify assessment history");
+        navigate("/dashboard");
+        return;
+      }
+
+      if (previousAttempts && previousAttempts.length > 0) {
+        toast.error("You have already completed this assessment and cannot take it again");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Prevent retake of this specific attempt
       if (attempt.submitted_at) {
         toast.error("You have already completed this assessment");
         navigate("/dashboard");
