@@ -10,9 +10,8 @@ import ManageTeachers from "./admin/ManageTeachers";
 import ManageStudents from "./admin/ManageStudents";
 import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
-import createmockexam from "./admin/createmockexam";
+import CreateMockExam from "./admin/CreateMockExam";  // Capitalized for component naming convention
 import ViewStudentAttempts from "./admin/ViewStudentAttempts";
-
 
 interface AdminDashboardProps {
   user: User;
@@ -50,7 +49,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-6 mb-8">  {/* Changed to grid-cols-6 for six tabs on one line */}
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               Analytics
@@ -61,7 +60,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="teachers" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Subjects
+              Teachers  {/* Fixed label to match value */}
             </TabsTrigger>
             <TabsTrigger value="students" className="flex items-center gap-2">
               <GraduationCap className="w-4 h-4" />
@@ -69,10 +68,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="subjects" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
-              Teachers
+              Subjects  {/* Fixed label to match value */}
             </TabsTrigger>
             <TabsTrigger value="createmockexam" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
+              <FileText className="w-4 h-4" />  {/* Changed icon for consistency */}
               Create Mock
             </TabsTrigger>
           </TabsList>
@@ -97,13 +96,8 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             <ManageSubjects />
           </TabsContent>
 
-          <TabsContent value="analytics" className="animate-fade-in">
-            <Analytics />
-          </TabsContent>
-
-
-          <TabsContent value="analytics" className="animate-fade-in">
-            <createmockexam />
+          <TabsContent value="createmockexam" className="animate-fade-in">
+            <CreateMockExam />  {/* Capitalized component name */}
           </TabsContent>
         </Tabs>
       </main>
