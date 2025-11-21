@@ -44,16 +44,16 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
         <Tabs defaultValue="assessments">
           <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="assessments" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3 h-4" />
               Take Assessment
             </TabsTrigger>
             <TabsTrigger value="results" className="flex items-center gap-2">
-              <Trophy className="w-4 h-4" />
+              <Trophy className="w-3 h-4" />
               My Results
             </TabsTrigger>
 
              <TabsTrigger value="Mock" className="flex items-center gap-2">
-              <Trophy className="w-4 h-4" />
+              <Trophy className="w-3 h-4" />
              Mock
             </TabsTrigger>
             
