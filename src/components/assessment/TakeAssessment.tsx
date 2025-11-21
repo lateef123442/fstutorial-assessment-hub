@@ -28,6 +28,87 @@ const TakeAssessment = () => {
   // LOAD ASSESSMENT + ATTEMPT
   // ============================================
 
+  const loadAssessment = async () => {
+    try {
+      // Get logged-in student
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("You must be logged in to take this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Fetch attempt using student_id
+      const { data: attempt, error: attemptError } = await supabase
+        .from("attempts")
+        .select("*, assessments(*)")
+        .eq("id", attemptId)
+        .eq("student_id", user.id)
+        .single();
+
+      if (attemptError || !attempt) {
+        toast.error("Attempt not found or unauthorized");
+        navigate("/dashboard");
+        return;
+      }
+
+      // If attempt already submitted
+      if (attempt.submitted_at) {
+        toast.error("You have already completed this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Check if student already submitted any attempt for this assessment
+      const { data: previousAttempts, error: prevError } = await supabase
+        .from("attempts")
+        .select("id")
+        .eq("assessment_id", attempt.assessment_id)
+        .eq("student_id", user.id)
+        .not("submitted_at", "is", null);
+
+      if (prevError) {
+        toast.error("Failed to verify assessment history");
+        navigate("/dashboard");
+        return;
+      }
+
+      if (previousAttempts.length > 0) {
+        toast.error("You have already completed this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Set assessment
+      setAssessment(attempt.assessments);
+
+      // Set duration
+      setTimeRemaining(attempt.assessments.duration_minutes * 60);
+
+      // Load questions
+      const { data: questionsData } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("assessment_id", attempt.assessment_id)
+        .order("created_at");
+
+      setQuestions(questionsData);
+
+      // Update total questions in attempt
+      await supabase
+        .from("attempts")
+        .update({ total_questions: questionsData.length })
+        .eq("id", attemptId);
+
+      setLoading(false);
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load assessment");
+      navigate("/dashboard");
+    }
+  };
+
   useEffect(() => {
     if (!attemptId) {
       toast.error("Invalid assessment link");
@@ -37,7 +118,6 @@ const TakeAssessment = () => {
     loadAssessment();
   }, [attemptId]);
 
-  
   // ============================================
   // TIMER
   // ============================================
@@ -107,86 +187,7 @@ const TakeAssessment = () => {
           selected_answer: selected || null,
           is_correct: isCorrect,
         });
- const loadAssessment = async () => {
-  try {
-    // Get logged-in student
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      toast.error("You must be logged in to take this assessment");
-      navigate("/dashboard");
-      return;
-    }
-
-    // Fetch attempt using student_id
-    const { data: attempt, error: attemptError } = await supabase
-      .from("attempts")
-      .select("*, assessments(*)")
-      .eq("id", attemptId)
-      .eq("student_id", user.id)   // FIXED HERE
-      .single();
-
-    if (attemptError || !attempt) {
-      toast.error("Attempt not found or unauthorized");
-      navigate("/dashboard");
-      return;
-    }
-
-    // If attempt already submitted
-    if (attempt.submitted_at) {
-      toast.error("You have already completed this assessment");
-      navigate("/dashboard");
-      return;
-    }
-
-    // Check if student already submitted any attempt for this assessment
-    const { data: previousAttempts, error: prevError } = await supabase
-      .from("attempts")
-      .select("id")
-      .eq("assessment_id", attempt.assessment_id)
-      .eq("student_id", user.id)     // FIXED HERE
-      .not("submitted_at", "is", null);
-
-    if (prevError) {
-      toast.error("Failed to verify assessment history");
-      navigate("/dashboard");
-      return;
-    }
-
-    if (previousAttempts.length > 0) {
-      toast.error("You have already completed this assessment");
-      navigate("/dashboard");
-      return;
-    }
-
-    // Set assessment
-    setAssessment(attempt.assessments);
-
-    // Set duration
-    setTimeRemaining(attempt.assessments.duration_minutes * 60);
-
-    // Load questions
-    const { data: questionsData } = await supabase
-      .from("questions")
-      .select("*")
-      .eq("assessment_id", attempt.assessment_id)
-      .order("created_at");
-
-    setQuestions(questionsData);
-
-    // Update total questions in attempt
-    await supabase
-      .from("attempts")
-      .update({ total_questions: questionsData.length })
-      .eq("id", attemptId);
-
-    setLoading(false);
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to load assessment");
-    navigate("/dashboard");
-  }
-};     }
+      }
 
       const passed = correct >= (assessment?.passing_score || 0);
 
