@@ -25,7 +25,7 @@ const TakeAssessment = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // ============================================
-  // PUBLIC: Load Attempt + Questions
+  // LOAD ASSESSMENT + ATTEMPT
   // ============================================
 
   useEffect(() => {
@@ -39,7 +39,7 @@ const TakeAssessment = () => {
 
   const loadAssessment = async () => {
     try {
-      // Get the current user
+      // Get user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error("You must be logged in to take this assessment");
@@ -47,40 +47,54 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Fetch attempt ONLY if it belongs to the logged-in user
-
-
-      // Check if the user has already submitted any attempt for this assessment (to enforce "take once")
-      const { data: previousAttempts, error: prevError } = await supabase
+      // Fetch attempt with assessment + owner profile
+      const { data: attempt, error: attemptError } = await supabase
         .from("attempts")
-        .select("id")
-        .eq("assessment_id", attempt.assessment_id)
+        .select("*, assessments(*, profiles(*))")
+        .eq("id", attemptId)
         .eq("user_id", user.id)
-        .not("submitted_at", "is", null);  // Only count submitted attempts
+        .single();
 
-      if (prevError) {
-        toast.error("Failed to verify assessment history");
+      if (attemptError || !attempt) {
+        toast.error("Attempt not found");
         navigate("/dashboard");
         return;
       }
 
-      if (previousAttempts && previousAttempts.length > 0) {
-        toast.error("You have already completed this assessment and cannot take it again");
-        navigate("/dashboard");
-        return;
-      }
-
-      // Prevent retake of this specific attempt
+      // Block retake of same attempt
       if (attempt.submitted_at) {
         toast.error("You have already completed this assessment");
         navigate("/dashboard");
         return;
       }
 
+      // Block multiple attempts for same assessment
+      const { data: previousAttempts, error: prevError } = await supabase
+        .from("attempts")
+        .select("id")
+        .eq("assessment_id", attempt.assessment_id)
+        .eq("user_id", user.id)
+        .not("submitted_at", "is", null);
+
+      if (prevError) {
+        toast.error("Failed to verify attempt history");
+        navigate("/dashboard");
+        return;
+      }
+
+      if (previousAttempts.length > 0) {
+        toast.error("You have already completed this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Set assessment
       setAssessment(attempt.assessments);
 
+      // Start countdown
       setTimeRemaining(attempt.assessments.duration_minutes * 60);
 
+      // Load questions
       const { data: questionsData } = await supabase
         .from("questions")
         .select("*")
@@ -89,13 +103,16 @@ const TakeAssessment = () => {
 
       setQuestions(questionsData);
 
+      // Save total question count
       await supabase
         .from("attempts")
         .update({ total_questions: questionsData.length })
         .eq("id", attemptId);
 
       setLoading(false);
+
     } catch (err) {
+      console.error(err);
       toast.error("Failed to load assessment");
       navigate("/dashboard");
     }
@@ -106,35 +123,36 @@ const TakeAssessment = () => {
   // ============================================
 
   useEffect(() => {
-    if (timeRemaining <= 0 && assessment) {
+    if (!assessment) return;
+
+    if (timeRemaining <= 0) {
       handleSubmit(true);
       return;
     }
 
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => Math.max(prev - 1, 0));
+      setTimeRemaining((t) => Math.max(t - 1, 0));
     }, 1000);
 
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
   // ============================================
-  // AUTO-SUBMIT WHEN LEAVING OR MINIMIZING
+  // AUTO-SUBMIT ON LEAVING TAB
   // ============================================
 
   useEffect(() => {
-    const handleLeave = () => {
-      handleSubmit(true);
+    const handleLeave = () => handleSubmit(true);
+
+    const onVisibility = () => {
+      if (document.hidden) handleLeave();
     };
 
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) handleLeave();
-    });
-
+    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", handleLeave);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleLeave);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", handleLeave);
     };
   }, []);
@@ -158,7 +176,6 @@ const TakeAssessment = () => {
     try {
       let correct = 0;
 
-      // Save answers one by one
       for (const q of questions) {
         const selected = answers[q.id];
         const isCorrect = selected === q.correct_answer;
@@ -174,7 +191,6 @@ const TakeAssessment = () => {
 
       const passed = correct >= (assessment?.passing_score || 0);
 
-      // Finalize the attempt
       const { error: updateErr } = await supabase
         .from("attempts")
         .update({
@@ -183,16 +199,14 @@ const TakeAssessment = () => {
           submitted_at: new Date().toISOString(),
           auto_submitted: autoSubmitted,
         })
-        .eq("id", attemptId)
-        .select();
+        .eq("id", attemptId);
 
       if (updateErr) {
-        console.log(updateErr);
         toast.error("Submission blocked by RLS policy");
         return;
       }
 
-      // Notification email
+      // Send result email
       const percentage = Math.round((correct / questions.length) * 100);
       notifyUserAction(
         assessment?.profiles?.email,
@@ -203,16 +217,17 @@ const TakeAssessment = () => {
 
       toast.success("Assessment Submitted!");
       navigate("/dashboard");
+
     } catch (err) {
       console.error(err);
-      toast.error("Failed to submit");
+      toast.error("Failed to submit assessment");
     } finally {
       setSubmitting(false);
     }
   };
 
   // ============================================
-  // UI COMPONENTS
+  // UI
   // ============================================
 
   if (loading)
