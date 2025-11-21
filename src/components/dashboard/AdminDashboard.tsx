@@ -10,7 +10,9 @@ import ManageTeachers from "./admin/ManageTeachers";
 import ManageStudents from "./admin/ManageStudents";
 import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
+import createmockexam from "./admin/createmockexam";
 import ViewStudentAttempts from "./admin/ViewStudentAttempts";
+
 
 interface AdminDashboardProps {
   user: User;
@@ -93,6 +95,11 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
           <TabsContent value="analytics" className="animate-fade-in">
             <Analytics />
+          </TabsContent>
+
+
+          <TabsContent value="analytics" className="animate-fade-in">
+            <createmockexam />
           </TabsContent>
         </Tabs>
       </main>
