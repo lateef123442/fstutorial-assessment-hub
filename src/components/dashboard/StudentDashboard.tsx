@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
 import MyResults from "./student/MyResults";
+import mock from "./student/Mock";
 
 interface StudentDashboardProps {
   user: User;
@@ -50,6 +51,12 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <Trophy className="w-4 h-4" />
               My Results
             </TabsTrigger>
+
+             <TabsTrigger value="Mock" className="flex items-center gap-2">
+              <Trophy className="w-4 h-4" />
+             Mock
+            </TabsTrigger>
+            
           </TabsList>
 
           <TabsContent value="assessments" className="animate-fade-in">
@@ -58,6 +65,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
 
           <TabsContent value="results" className="animate-fade-in">
             <MyResults studentId={user.id} />
+          </TabsContent>
+
+           <TabsContent value="results" className="animate-fade-in">
+            <mock studentId={user.id} />
           </TabsContent>
         </Tabs>
       </main>
