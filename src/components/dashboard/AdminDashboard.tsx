@@ -71,6 +71,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <BookOpen className="w-4 h-4" />
               Teachers
             </TabsTrigger>
+            <TabsTrigger value="createmockexam" className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              Create Mock
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics" className="animate-fade-in">
