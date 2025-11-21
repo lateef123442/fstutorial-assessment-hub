@@ -51,10 +51,9 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <Trophy className="w-3 h-4" />
               My Results
             </TabsTrigger>
-
-             <TabsTrigger value="Mock" className="flex items-center gap-2">
-              <Trophy className="w-3 h-4" />
-             Mock
+            <TabsTrigger value="mock-exams" className="flex items-center gap-2">
+              <FileText className="w-3 h-4" />
+              Mock Exams
             </TabsTrigger>
             
           </TabsList>
