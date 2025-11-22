@@ -10,7 +10,7 @@ import ManageTeachers from "./admin/ManageTeachers";
 import ManageStudents from "./admin/ManageStudents";
 import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
-import createmockexam from "./admin/createmockexam";
+import CreateMockExam from "./admin/CreateMockExam";
 import ViewStudentAttempts from "./admin/ViewStudentAttempts";
 
 
@@ -71,7 +71,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <BookOpen className="w-4 h-4" />
               Teachers
             </TabsTrigger>
-            <TabsTrigger value="createmockexam" className="flex items-center gap-2">
+            <TabsTrigger value="CreateMockExam" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
               Create Mock
             </TabsTrigger>
@@ -103,7 +103,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
 
           <TabsContent value="analytics" className="animate-fade-in">
-            <createmockexam />
+            <CreateMockExam />
           </TabsContent>
         </Tabs>
       </main>
