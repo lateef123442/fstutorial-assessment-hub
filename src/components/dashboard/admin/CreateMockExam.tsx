@@ -5,14 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox"; // Assuming Checkbox is available in your UI library
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
-
-interface CreateMockExamProps {
-  adminId: string; // UUID from profiles
-}
+import { User } from "@supabase/supabase-js"; // For typing
 
 interface Question {
   question_text: string;
@@ -34,7 +31,7 @@ interface SubjectData {
   questions: Question[];
 }
 
-const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
+const CreateMockExam = () => {  // Removed adminId prop
   const [formData, setFormData] = useState({
     title: "",
     total_duration_minutes: 120,
@@ -44,6 +41,35 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<SubjectData[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Fetch user and check admin role
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        toast.error("Please log in");
+        return;
+      }
+      setUser(user);
+
+      // Check role in user_roles
+      const { data: roleData, error: roleError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (roleError || !roleData || roleData.role !== "admin") {
+        toast.error("Only admins can create mock exams");
+        setIsAdmin(false);
+      } else {
+        setIsAdmin(true);
+      }
+    };
+    getUser();
+  }, []);
 
   // Fetch available subjects
   useEffect(() => {
@@ -106,12 +132,17 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user || !isAdmin) {
+      toast.error("Unauthorized: Only admins can create mock exams");
+      return;
+    }
+
     if (selectedSubjectIds.length === 0 || selectedSubjectIds.length > 4) {
       toast.error("Please select between 1 and 4 subjects");
       return;
     }
 
-    // Validate all subjects have at least one question and fields are filled
+    // Validate questions
     for (const subj of subjects) {
       if (subj.questions.length === 0 || subj.questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) {
         toast.error(`Please fill in all fields for ${subj.subject}`);
@@ -127,22 +158,22 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
           title: formData.title,
           total_duration_minutes: formData.total_duration_minutes,
           passing_score: formData.passing_score,
-          created_by: adminId,
+          created_by: user.id,  // Use user.id
         })
         .select()
         .single();
 
       if (mockError) throw mockError;
 
-      // For each subject, create assessment and questions
+      // For each subject, create assessment
       for (const subj of subjects) {
         const { data: assessment, error: assessError } = await supabase
           .from("assessments")
           .insert({
             title: `${formData.title} - ${subj.subject}`,
-            subject_id: subj.subjectId, // UUID FK
-            teacher_id: adminId,
-            duration_minutes: Math.floor(formData.total_duration_minutes / subjects.length), // Distribute time
+            subject_id: subj.subjectId,
+            teacher_id: user.id,  // Use user.id
+            duration_minutes: Math.floor(formData.total_duration_minutes / subjects.length),
             passing_score: 0,
           })
           .select()
@@ -175,7 +206,7 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
               student.profiles.email,
               student.profiles.full_name,
               "assessment_created",
-              `A new mock exam "${formData.title}" has been created and is now available for you to take.`
+              `A new mock exam "${formData.title}" has been created.`
             );
           }
         });
@@ -187,9 +218,13 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
       setSelectedSubjectIds([]);
       setSubjects([]);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(`Error: ${error.message}`);
     }
   };
+
+  if (!isAdmin) {
+    return <div className="p-4">Access denied: Only admins can create mock exams.</div>;
+  }
 
   return (
     <div className="space-y-6">
