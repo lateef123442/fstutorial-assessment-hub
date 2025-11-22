@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox"; // Assuming Checkbox is available in your UI library
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 
 interface CreateMockExamProps {
-  adminId: string; // Assuming admin ID is passed
+  adminId: string; // UUID from profiles
 }
 
 interface Question {
@@ -22,24 +23,60 @@ interface Question {
   correct_answer: string;
 }
 
+interface Subject {
+  id: string; // UUID
+  name: string;
+}
+
 interface SubjectData {
-  subject: string;
+  subjectId: string; // UUID
+  subject: string; // Name
   questions: Question[];
 }
 
 const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
   const [formData, setFormData] = useState({
     title: "",
-    total_duration_minutes: 120, // Default 2 hours
-    passing_score: 50, // Overall passing %
+    total_duration_minutes: 120,
+    passing_score: 50,
   });
 
-  const [subjects, setSubjects] = useState<SubjectData[]>([
-    { subject: "English", questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }] },
-    { subject: "Physics", questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }] },
-    { subject: "Chemistry", questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }] },
-    { subject: "Biology", questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }] },
-  ]);
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<SubjectData[]>([]);
+
+  // Fetch available subjects
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data, error } = await supabase.from("subjects").select("id, name");
+      if (error) {
+        toast.error("Failed to load subjects");
+      } else {
+        setAvailableSubjects(data || []);
+      }
+    };
+    fetchSubjects();
+  }, []);
+
+  // Update subjects state when selections change
+  useEffect(() => {
+    const selected = availableSubjects.filter(sub => selectedSubjectIds.includes(sub.id));
+    setSubjects(selected.map(sub => ({
+      subjectId: sub.id,
+      subject: sub.name,
+      questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }]
+    })));
+  }, [selectedSubjectIds, availableSubjects]);
+
+  const handleSubjectSelection = (subjectId: string, checked: boolean) => {
+    if (checked && selectedSubjectIds.length >= 4) {
+      toast.error("You can select a maximum of 4 subjects");
+      return;
+    }
+    setSelectedSubjectIds(prev =>
+      checked ? [...prev, subjectId] : prev.filter(id => id !== subjectId)
+    );
+  };
 
   const addQuestion = (subjectIndex: number) => {
     const updatedSubjects = [...subjects];
@@ -68,6 +105,11 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedSubjectIds.length === 0 || selectedSubjectIds.length > 4) {
+      toast.error("Please select between 1 and 4 subjects");
+      return;
+    }
 
     // Validate all subjects have at least one question and fields are filled
     for (const subj of subjects) {
@@ -98,17 +140,16 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
           .from("assessments")
           .insert({
             title: `${formData.title} - ${subj.subject}`,
-            subject: subj.subject, // Assuming subject field exists
-            duration_minutes: Math.floor(formData.total_duration_minutes / 4), // Evenly distribute time
-            passing_score: 0, // Per-subject passing not enforced
-            teacher_id: adminId, // Or admin_id if different
+            subject_id: subj.subjectId, // UUID FK
+            teacher_id: adminId,
+            duration_minutes: Math.floor(formData.total_duration_minutes / subjects.length), // Distribute time
+            passing_score: 0,
           })
           .select()
           .single();
 
         if (assessError) throw assessError;
 
-        // Insert questions
         const questionsWithId = subj.questions.map(q => ({ ...q, assessment_id: assessment.id }));
         const { error: qError } = await supabase.from("questions").insert(questionsWithId);
         if (qError) throw qError;
@@ -117,7 +158,7 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
         await supabase.from("mock_exam_assessments").insert({
           mock_exam_id: mockExam.id,
           assessment_id: assessment.id,
-          subject: subj.subject,
+          subject_name: subj.subject,
         });
       }
 
@@ -141,9 +182,10 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
       }
 
       toast.success("Mock Exam created successfully!");
-      // Reset form
+      // Reset
       setFormData({ title: "", total_duration_minutes: 120, passing_score: 50 });
-      setSubjects(subjects.map(subj => ({ ...subj, questions: [{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }] })));
+      setSelectedSubjectIds([]);
+      setSubjects([]);
     } catch (error: any) {
       toast.error(error.message);
     }
@@ -154,7 +196,7 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
       <Card>
         <CardHeader>
           <CardTitle>Create New Mock Exam</CardTitle>
-          <CardDescription>Design a mock exam with questions for English, Physics, Chemistry, and Biology</CardDescription>
+          <CardDescription>Select up to 4 subjects and design questions</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -190,16 +232,31 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
               </div>
             </div>
 
+            <div>
+              <Label>Select Subjects (Max 4)</Label>
+              <div className="grid md:grid-cols-2 gap-2 mt-2">
+                {availableSubjects.map((subj) => (
+                  <div key={subj.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={subj.id}
+                      checked={selectedSubjectIds.includes(subj.id)}
+                      onCheckedChange={(checked) => handleSubjectSelection(subj.id, checked as boolean)}
+                    />
+                    <Label htmlFor={subj.id}>{subj.name}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {subjects.map((subj, subjIndex) => (
-              <Card key={subj.subject}>
+              <Card key={subj.subjectId}>
                 <CardHeader>
                   <CardTitle>{subj.subject}</CardTitle>
-                  <CardDescription>Add questions for {subj.subject}</CardDescription>
+                  <CardDescription>Add questions</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Button type="button" onClick={() => addQuestion(subjIndex)} variant="outline">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Question
+                    <Plus className="w-4 h-4 mr-2" /> Add Question
                   </Button>
 
                   {subj.questions.map((question, qIndex) => (
@@ -208,68 +265,26 @@ const CreateMockExam = ({ adminId }: CreateMockExamProps) => {
                         <div className="flex items-center justify-between">
                           <h4 className="font-semibold">Question {qIndex + 1}</h4>
                           {subj.questions.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeQuestion(subjIndex, qIndex)}
-                            >
+                            <Button type="button" variant="ghost" size="sm" onClick={() => removeQuestion(subjIndex, qIndex)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
                         </div>
                         <div>
                           <Label>Question Text</Label>
-                          <Input
-                            value={question.question_text}
-                            onChange={(e) => updateQuestion(subjIndex, qIndex, "question_text", e.target.value)}
-                            required
-                          />
+                          <Input value={question.question_text} onChange={(e) => updateQuestion(subjIndex, qIndex, "question_text", e.target.value)} required />
                         </div>
                         <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label>Option A</Label>
-                            <Input
-                              value={question.option_a}
-                              onChange={(e) => updateQuestion(subjIndex, qIndex, "option_a", e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label>Option B</Label>
-                            <Input
-                              value={question.option_b}
-                              onChange={(e) => updateQuestion(subjIndex, qIndex, "option_b", e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label>Option C</Label>
-                            <Input
-                              value={question.option_c}
-                              onChange={(e) => updateQuestion(subjIndex, qIndex, "option_c", e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <Label>Option D</Label>
-                            <Input
-                              value={question.option_d}
-                              onChange={(e) => updateQuestion(subjIndex, qIndex, "option_d", e.target.value)}
-                              required
-                            />
-                          </div>
+                          <div><Label>Option A</Label><Input value={question.option_a} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_a", e.target.value)} required /></div>
+                          <div><Label>Option B</Label><Input value={question.option_b} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_b", e.target.value)} required /></div>
+                          <div><Label>Option C</Label><Input value={question.option_c} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_c", e.target.value)} required /></div>
+                          <div><Label>Option D</Label><Input value={question.option_d} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_d", e.target.value)} required /></div>
                         </div>
                         <div>
                           <Label>Correct Answer</Label>
-                          <Select
-                            value={question.correct_answer}
-                            onValueChange={(value) => updateQuestion(subjIndex, qIndex, "correct_answer", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-background z-50">
+                          <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(subjIndex, qIndex, "correct_answer", value)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
                               <SelectItem value="A">A</SelectItem>
                               <SelectItem value="B">B</SelectItem>
                               <SelectItem value="C">C</SelectItem>
