@@ -59,17 +59,17 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         <FileText className="w-4 h-4" />
         Attempts
       </TabsTrigger>
-      <TabsTrigger value="Subjects" className="flex items-center gap-2">
-        <BookOpen className="w-4 h-4" />
-        Subjects  {/* Fixed label to match value */}
+      <TabsTrigger value="teachers" className="flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Teachers  {/* Fixed label to match value */}
       </TabsTrigger>
       <TabsTrigger value="students" className="flex items-center gap-2">
         <GraduationCap className="w-4 h-4" />
         Students
       </TabsTrigger>
-      <TabsTrigger value="Teachers" className="flex items-center gap-2">
-        <Users className="w-4 h-4" />
-        Teachers  {/* Fixed label to match value */}
+      <TabsTrigger value="subjects" className="flex items-center gap-2">
+        <BookOpen className="w-4 h-4" />
+        Subjects  {/* Fixed label to match value */}
       </TabsTrigger>
       <TabsTrigger value="createmockexam" className="flex items-center gap-2">  {/* Changed value to lowercase for consistency */}
         <BookOpen className="w-4 h-4" />
