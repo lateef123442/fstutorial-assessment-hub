@@ -10,8 +10,8 @@ import ManageTeachers from "./admin/ManageTeachers";
 import ManageStudents from "./admin/ManageStudents";
 import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
-import CreateMockExam from "./admin/CreateMockExam";
 import ViewStudentAttempts from "./admin/ViewStudentAttempts";
+import CreateMockExam from "./admin/CreateMockExam";
 
 
 interface AdminDashboardProps {
@@ -49,64 +49,60 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-8">
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="attempts" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Attempts
-            </TabsTrigger>
-            <TabsTrigger value="teachers" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Subjects
-            </TabsTrigger>
-            <TabsTrigger value="students" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              Students
-            </TabsTrigger>
-            <TabsTrigger value="subjects" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              Teachers
-            </TabsTrigger>
-            <TabsTrigger value="CreateMockExam" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              Create Mock
-            </TabsTrigger>
-          </TabsList>
+  <Tabs value={activeTab} onValueChange={setActiveTab}>
+    <TabsList className="grid w-full grid-cols-6 mb-8">  {/* Changed to grid-cols-6 for 6 tabs on one line */}
+      <TabsTrigger value="analytics" className="flex items-center gap-2">
+        <BarChart3 className="w-4 h-4" />
+        Analytics
+      </TabsTrigger>
+      <TabsTrigger value="attempts" className="flex items-center gap-2">
+        <FileText className="w-4 h-4" />
+        Attempts
+      </TabsTrigger>
+      <TabsTrigger value="teachers" className="flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Teachers  {/* Fixed label to match value */}
+      </TabsTrigger>
+      <TabsTrigger value="students" className="flex items-center gap-2">
+        <GraduationCap className="w-4 h-4" />
+        Students
+      </TabsTrigger>
+      <TabsTrigger value="subjects" className="flex items-center gap-2">
+        <BookOpen className="w-4 h-4" />
+        Subjects  {/* Fixed label to match value */}
+      </TabsTrigger>
+      <TabsTrigger value="createmockexam" className="flex items-center gap-2">  {/* Changed value to lowercase for consistency */}
+        <BookOpen className="w-4 h-4" />
+        Create Mock
+      </TabsTrigger>
+    </TabsList>
 
-          <TabsContent value="analytics" className="animate-fade-in">
-            <Analytics />
-          </TabsContent>
+    <TabsContent value="analytics" className="animate-fade-in">
+      <Analytics />
+    </TabsContent>
 
-          <TabsContent value="attempts" className="animate-fade-in">
-            <ViewStudentAttempts />
-          </TabsContent>
+    <TabsContent value="attempts" className="animate-fade-in">
+      <ViewStudentAttempts />
+    </TabsContent>
 
-          <TabsContent value="teachers" className="animate-fade-in">
-            <ManageTeachers />
-          </TabsContent>
+    <TabsContent value="teachers" className="animate-fade-in">
+      <ManageTeachers />
+    </TabsContent>
 
-          <TabsContent value="students" className="animate-fade-in">
-            <ManageStudents />
-          </TabsContent>
+    <TabsContent value="students" className="animate-fade-in">
+      <ManageStudents />
+    </TabsContent>
 
-          <TabsContent value="subjects" className="animate-fade-in">
-            <ManageSubjects />
-          </TabsContent>
+    <TabsContent value="subjects" className="animate-fade-in">
+      <ManageSubjects />
+    </TabsContent>
 
-          <TabsContent value="analytics" className="animate-fade-in">
-            <Analytics />
-          </TabsContent>
+    <TabsContent value="createmockexam" className="animate-fade-in">  {/* Fixed value and removed duplicates */}
+      <CreateMockExam />
+    </TabsContent>
+  </Tabs>
+</main>
 
-
-          <TabsContent value="analytics" className="animate-fade-in">
-            <CreateMockExam />
-          </TabsContent>
-        </Tabs>
-      </main>
     </div>
   );
 };
