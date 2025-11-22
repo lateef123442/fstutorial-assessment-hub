@@ -70,22 +70,23 @@ const ManageStudents = () => {
 
         if (roleError) throw roleError;
 
-        toast.success(`Student added! Password: ${password}`, {
-          duration: 10000,
-        });
-        
-        notifyUserAction(
+        // Send password via email
+        await notifyUserAction(
           formData.email,
           formData.fullName,
           "signup",
-          `Your student account has been created. Your password is: ${password}`
+          `Your student account has been created. Your login email is: ${formData.email}. Your temporary password is: ${password}. Please log in and change your password immediately.`
         );
+
+        toast.success("Student added and password sent to email!", {
+          duration: 5000,
+        });
         
         setFormData({ email: "", fullName: "" });
         fetchStudents();
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -135,7 +136,7 @@ const ManageStudents = () => {
       <Card>
         <CardHeader>
           <CardTitle>Add New Student</CardTitle>
-          <CardDescription>Create a new student account (password will be auto-generated)</CardDescription>
+          <CardDescription>Create a new student account (password will be auto-generated and sent via email)</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddStudent} className="space-y-4">
