@@ -60,7 +60,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         Attempts
       </TabsTrigger>
       <TabsTrigger value="teachers" className="flex items-center gap-2">
-        <Users className="w-4 h-4" />
+        <BookOpen className="w-4 h-4" />
         Subjects  {/* Fixed label to match value */}
       </TabsTrigger>
       <TabsTrigger value="students" className="flex items-center gap-2">
@@ -68,7 +68,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
         Students
       </TabsTrigger>
       <TabsTrigger value="subjects" className="flex items-center gap-2">
-        <BookOpen className="w-4 h-4" />
+        <Users className="w-4 h-4" />
         Teachers  {/* Fixed label to match value */}
       </TabsTrigger>
       <TabsTrigger value="createmockexam" className="flex items-center gap-2">  {/* Changed value to lowercase for consistency */}
