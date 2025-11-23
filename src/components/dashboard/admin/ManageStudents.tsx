@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { createClient } from '@supabase/supabase-js'; // Add this import
+import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,20 +62,20 @@ const ManageStudents = () => {
 
       // Create admin client with service role
       const supabaseAdmin = createClient(
-        process.env.VITE_SUPABASE_URL,
-        process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
       );
 
       // Invite user
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(formData.email, {
         data: { full_name: formData.fullName },
-        redirectTo: `${window.location.origin}/confirm-email`, // Point to your confirmation page
+        redirectTo: `${window.location.origin}/confirm-email`,
       });
 
       if (inviteError) throw inviteError;
 
       if (inviteData.user) {
-        // Insert role using admin client to bypass RLS
+        // Insert role using admin client
         const { error: roleError } = await supabaseAdmin
           .from("user_roles")
           .insert({ user_id: inviteData.user.id, role: "student" });
