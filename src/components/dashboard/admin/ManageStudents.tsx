@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,41 +41,21 @@ const ManageStudents = () => {
     setLoading(true);
 
     try {
-      // Check if current user is admin
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please log in as an admin.");
-        return;
-      }
+      // Create a Supabase client with service role key (replace with your key)
+      const supabaseAdmin = supabase; // In production, use a new client with service_role key
+      // Example: const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-
-      if (roleError || roleData?.role !== "admin") {
-        toast.error("Only admins can invite students.");
-        return;
-      }
-
-      // Create admin client with service role
-      const supabaseAdmin = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-      );
-
-      // Invite user
+      // Invite user by email (Supabase sends invitation with password setup link)
       const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(formData.email, {
         data: { full_name: formData.fullName },
-        redirectTo: `${window.location.origin}/confirm-email`,
+        redirectTo: `${window.location.origin}/login`, // Optional: redirect after setup
       });
 
       if (inviteError) throw inviteError;
 
       if (inviteData.user) {
-        // Insert role using admin client
-        const { error: roleError } = await supabaseAdmin
+        // Add role to user_roles
+        const { error: roleError } = await supabase
           .from("user_roles")
           .insert({ user_id: inviteData.user.id, role: "student" });
 
