@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import ConfirmEmail from "./pages/ConfirmEmail.tsx";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import NotFound from "./pages/NotFound";
 import TakeAssessment from "./components/assessment/TakeAssessment";
 import AssessmentReview from "./components/assessment/AssessmentReview";
