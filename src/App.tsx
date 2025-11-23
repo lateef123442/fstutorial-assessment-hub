@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import ConfirmEmail from "./pages/ConfirmEmail.tsx";
 import NotFound from "./pages/NotFound";
 import TakeAssessment from "./components/assessment/TakeAssessment";
 import AssessmentReview from "./components/assessment/AssessmentReview";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/take-assessment/:attemptId" element={<TakeAssessment />} />
           <Route path="/assessment-review/:attemptId" element={<AssessmentReview />} />
+          <Route path="*" element={<ConfirmEmail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
