@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Trash2, Edit } from "lucide-react";
+import { notifyUserAction } from "@/lib/emailNotifications";
 
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
@@ -36,35 +37,51 @@ const ManageStudents = () => {
     setLoading(false);
   };
 
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    let password = "";
+    for (let i = 0; i < 10; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Create a Supabase client with service role key (replace with your key)
-      const supabaseAdmin = supabase; // In production, use a new client with service_role key
-      // Example: const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const password = generatePassword();
 
-      // Invite user by email (Supabase sends invitation with password setup link)
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(formData.email, {
-        data: { full_name: formData.fullName },
-        redirectTo: `${window.location.origin}/login`, // Optional: redirect after setup
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: password,
+        options: {
+          data: { full_name: formData.fullName },
+        },
       });
 
-      if (inviteError) throw inviteError;
+      if (authError) throw authError;
 
-      if (inviteData.user) {
-        // Add role to user_roles
+      if (authData.user) {
         const { error: roleError } = await supabase
           .from("user_roles")
-          .insert({ user_id: inviteData.user.id, role: "student" });
+          .insert({ user_id: authData.user.id, role: "student" });
 
         if (roleError) throw roleError;
 
-        toast.success("Student invited! They will receive an email to set up their password.", {
+        // Send password via email
+        await notifyUserAction(
+          formData.email,
+          formData.fullName,
+          "signup",
+          `Your student account has been created. Your login email is: ${formData.email}. Your temporary password is: ${password}. Please log in and change your password immediately.`
+        );
+
+        toast.success("Student added and password sent to email!", {
           duration: 5000,
         });
-
+        
         setFormData({ email: "", fullName: "" });
         fetchStudents();
       }
@@ -119,7 +136,7 @@ const ManageStudents = () => {
       <Card>
         <CardHeader>
           <CardTitle>Add New Student</CardTitle>
-          <CardDescription>Invite a new student (they will receive an email to set up their password)</CardDescription>
+          <CardDescription>Create a new student account (password will be auto-generated and sent via email)</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddStudent} className="space-y-4">
@@ -146,7 +163,7 @@ const ManageStudents = () => {
             </div>
             <Button type="submit" disabled={loading}>
               <Plus className="w-4 h-4 mr-2" />
-              Invite Student
+              Add Student
             </Button>
           </form>
         </CardContent>
