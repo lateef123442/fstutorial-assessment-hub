@@ -62,8 +62,8 @@ const ManageStudents = () => {
 
       // Create admin client with service role
       const supabaseAdmin = createClient(
-        process.env.VITE_SUPABASE_URL!,
-        process.env.VITE_SUPABASE_SERVICE_ROLE_KEY!
+        process.env.VITE_SUPABASE_URL,
+        process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
       );
 
       // Invite user
