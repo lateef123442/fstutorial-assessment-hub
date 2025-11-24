@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
 import MyResults from "./student/MyResults";
-import mock from "./student/Mock";
+import Mock from "./student/Mock";  // Capitalized for component naming
 
 interface StudentDashboardProps {
   user: User;
@@ -42,7 +42,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="assessments">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">  {/* Fixed to grid-cols-3 for 3 tabs */}
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-3 h-4" />
               Take Assessment
@@ -55,7 +55,6 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <FileText className="w-3 h-4" />
               Mock Exams
             </TabsTrigger>
-            
           </TabsList>
 
           <TabsContent value="assessments" className="animate-fade-in">
@@ -66,8 +65,8 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
             <MyResults studentId={user.id} />
           </TabsContent>
 
-           <TabsContent value="results" className="animate-fade-in">
-            <mock studentId={user.id} />
+          <TabsContent value="mock-exams" className="animate-fade-in">  {/* Fixed value and component */}
+            <Mock studentId={user.id} />
           </TabsContent>
         </Tabs>
       </main>
