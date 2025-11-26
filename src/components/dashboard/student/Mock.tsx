@@ -174,4 +174,4 @@ const StudentMockExams = () => {
   );
 };
 
-export default Mock;  // Fixed export to match component name
+export default Mock;  
