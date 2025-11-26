@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
 import MyResults from "./student/MyResults";
-import Mock from "./student/Mock";  // Capitalized for component naming
+import mock from "./student/Mock";  // Capitalized for component naming
 
 interface StudentDashboardProps {
   user: User;
