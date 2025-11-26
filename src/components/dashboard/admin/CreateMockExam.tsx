@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added Tabs import
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
@@ -283,56 +284,69 @@ const CreateMockExam = () => {  // Removed adminId prop
               </div>
             </div>
 
-            {subjects.map((subj, subjIndex) => (
-              <Card key={subj.subjectId}>
-                <CardHeader>
-                  <CardTitle>{subj.subject}</CardTitle>
-                  <CardDescription>Add questions</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Button type="button" onClick={() => addQuestion(subjIndex)} variant="outline">
-                    <Plus className="w-4 h-4 mr-2" /> Add Question
-                  </Button>
+            {subjects.length > 0 && (
+              <Tabs defaultValue={subjects[0]?.subjectId} className="w-full">
+                <TabsList className="grid w-full grid-cols-{subjects.length} gap-0"> {/* Straight line tabs */}
+                  {subjects.map((subj) => (
+                    <TabsTrigger key={subj.subjectId} value={subj.subjectId}>
+                      {subj.subject}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {subjects.map((subj, subjIndex) => (
+                  <TabsContent key={subj.subjectId} value={subj.subjectId} className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>{subj.subject}</CardTitle>
+                        <CardDescription>Add questions</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <Button type="button" onClick={() => addQuestion(subjIndex)} variant="outline">
+                          <Plus className="w-4 h-4 mr-2" /> Add Question
+                        </Button>
 
-                  {subj.questions.map((question, qIndex) => (
-                    <Card key={qIndex}>
-                      <CardContent className="pt-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">Question {qIndex + 1}</h4>
-                          {subj.questions.length > 1 && (
-                            <Button type="button" variant="ghost" size="sm" onClick={() => removeQuestion(subjIndex, qIndex)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                        <div>
-                          <Label>Question Text</Label>
-                          <Input value={question.question_text} onChange={(e) => updateQuestion(subjIndex, qIndex, "question_text", e.target.value)} required />
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div><Label>Option A</Label><Input value={question.option_a} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_a", e.target.value)} required /></div>
-                          <div><Label>Option B</Label><Input value={question.option_b} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_b", e.target.value)} required /></div>
-                          <div><Label>Option C</Label><Input value={question.option_c} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_c", e.target.value)} required /></div>
-                          <div><Label>Option D</Label><Input value={question.option_d} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_d", e.target.value)} required /></div>
-                        </div>
-                        <div>
-                          <Label>Correct Answer</Label>
-                          <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(subjIndex, qIndex, "correct_answer", value)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="A">A</SelectItem>
-                              <SelectItem value="B">B</SelectItem>
-                              <SelectItem value="C">C</SelectItem>
-                              <SelectItem value="D">D</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {subj.questions.map((question, qIndex) => (
+                          <Card key={qIndex}>
+                            <CardContent className="pt-6 space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-semibold">Question {qIndex + 1}</h4>
+                                {subj.questions.length > 1 && (
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => removeQuestion(subjIndex, qIndex)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                              </div>
+                              <div>
+                                <Label>Question Text</Label>
+                                <Input value={question.question_text} onChange={(e) => updateQuestion(subjIndex, qIndex, "question_text", e.target.value)} required />
+                              </div>
+                              <div className="grid md:grid-cols-2 gap-4">
+                                <div><Label>Option A</Label><Input value={question.option_a} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_a", e.target.value)} required /></div>
+                                <div><Label>Option B</Label><Input value={question.option_b} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_b", e.target.value)} required /></div>
+                                <div><Label>Option C</Label><Input value={question.option_c} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_c", e.target.value)} required /></div>
+                                <div><Label>Option D</Label><Input value={question.option_d} onChange={(e) => updateQuestion(subjIndex, qIndex, "option_d", e.target.value)} required /></div>
+                              </div>
+                              <div>
+                                <Label>Correct Answer</Label>
+                                <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(subjIndex, qIndex, "correct_answer", value)}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="A">A</SelectItem>
+                                    <SelectItem value="B">B</SelectItem>
+                                    <SelectItem value="C">C</SelectItem>
+                                    <SelectItem value="D">D</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </CardContent>
                     </Card>
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
 
             <Button type="submit" className="w-full">Create Mock Exam</Button>
           </form>
