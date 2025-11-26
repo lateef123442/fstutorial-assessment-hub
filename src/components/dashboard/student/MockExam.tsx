@@ -21,10 +21,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   const fetchMockExams = async () => {
     const { data, error } = await supabase
       .from("mock_exam")
-      .select(`
-        *,
-        mock_exam_assessments(subject)
-      `)
+      .select("*")  // Select all from mock_exam table only (no joins, as subjects are in JSON)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -75,7 +72,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{exam.title}</h3>
                       <p className="text-sm text-muted-foreground mb-2">
-                        Subjects: {exam.mock_exam_assessments.map(a => a.subject).join(", ")}
+                        Subjects: {exam.subjects ? exam.subjects.map((s: any) => s.subject).join(", ") : "N/A"}  {/* Access subjects from JSON field */}
                       </p>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
