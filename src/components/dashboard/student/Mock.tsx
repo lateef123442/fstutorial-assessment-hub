@@ -43,45 +43,57 @@ const StudentMockExams = () => {
         return;
       }
 
-      // Fetch attempts with mock_exam_id
+      // Fetch all active mock exams from the "mock_exam" table
+      const { data: allMockExams, error: examsError } = await supabase
+        .from("mock_exam")
+        .select("*, mock_exam_assessments(subject)")
+        .eq("is_active", true); // Only fetch active mock exams
+
+      if (examsError) throw examsError;
+
+      // Fetch student's attempts for these mock exams
+      const mockExamIds = allMockExams.map(exam => exam.id);
       const { data: attempts, error: attemptsError } = await supabase
         .from("attempts")
-        .select("*, mock_exams(*, mock_exam_assessments(subject))")
+        .select("*")
         .eq("student_id", user.id)
-        .not("mock_exam_id", "is", null);
+        .in("mock_exam_id", mockExamIds);
 
       if (attemptsError) throw attemptsError;
 
-      // Group by mock_exam_id
-      const examMap = new Map<string, StudentMockExam>();
+      // Group attempts by mock_exam_id
+      const attemptsMap = new Map<string, any[]>();
       attempts.forEach((attempt) => {
-        const examId = attempt.mock_exam_id;
-        if (!examMap.has(examId)) {
-          examMap.set(examId, {
-            mock_exam: attempt.mock_exams,
-            attempts: [],
-            status: "not_started",
-          });
+        if (!attemptsMap.has(attempt.mock_exam_id)) {
+          attemptsMap.set(attempt.mock_exam_id, []);
         }
-        examMap.get(examId)!.attempts.push(attempt);
+        attemptsMap.get(attempt.mock_exam_id)!.push(attempt);
       });
 
-      // Determine status for each
-      const studentExams: StudentMockExam[] = Array.from(examMap.values()).map((exam) => {
-        const completedAttempts = exam.attempts.filter(a => a.submitted_at);
+      // Build student exams list from mock_exam table, enriched with attempts
+      const studentExams: StudentMockExam[] = allMockExams.map((exam) => {
+        const examAttempts = attemptsMap.get(exam.id) || [];
+        const completedAttempts = examAttempts.filter(a => a.submitted_at);
+        let status: "not_started" | "in_progress" | "completed" = "not_started";
+        let score: number | undefined;
+        let passed: boolean | undefined;
+
         if (completedAttempts.length > 0) {
-          // Assume last attempt's score
+          status = "completed";
           const lastAttempt = completedAttempts[completedAttempts.length - 1];
-          return {
-            ...exam,
-            status: "completed",
-            score: lastAttempt.score,
-            passed: lastAttempt.passed,
-          };
-        } else if (exam.attempts.length > 0) {
-          return { ...exam, status: "in_progress" };
+          score = lastAttempt.score;
+          passed = lastAttempt.passed;
+        } else if (examAttempts.length > 0) {
+          status = "in_progress";
         }
-        return exam;
+
+        return {
+          mock_exam: exam,
+          attempts: examAttempts,
+          status,
+          score,
+          passed,
+        };
       });
 
       setMockExams(studentExams);
@@ -162,4 +174,4 @@ const StudentMockExams = () => {
   );
 };
 
-export default Mock;
+export default Mock;  // Fixed export to match component name
