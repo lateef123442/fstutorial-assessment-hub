@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Clock, FileText, CheckCircle } from "lucide-react";
+import { toast } from "sonner";  // Added missing import
 
 interface StudentMockExamsProps {
   studentId: string;
@@ -100,4 +101,4 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   );
 };
 
-export default MockExam;
+export default StudentMockExams;  // Fixed export to match component name and import
