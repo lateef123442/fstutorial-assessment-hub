@@ -25,9 +25,6 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
-    console.log("Fetched mock exams:", data);  // Debug log
-    console.log("Error:", error);  // Debug log
-
     if (!error && data) {
       const now = new Date();
       const available = data.filter((exam) => {
@@ -42,10 +39,10 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
         return now >= scheduledDateTime;
       });
       
-      console.log("Available after filter:", available);  // Debug log
       setMockExams(available);
     } else {
       console.error("Failed to fetch mock exams:", error);
+      toast.error("Failed to load mock exams");
     }
     setLoading(false);
   };
