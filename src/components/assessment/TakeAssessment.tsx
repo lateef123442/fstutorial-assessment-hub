@@ -11,24 +11,24 @@ import { toast } from "sonner";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 
-const TakeAssessment = () => {
-  const { attemptId } = useParams();
+const TakeMockExam = () => {
+  const { mockExamId } = useParams();
   const navigate = useNavigate();
 
-  const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [assessment, setAssessment] = useState(null);
+  const [mockExam, setMockExam] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+  const [attempts, setAttempts] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // ============================================
-  // LOAD ASSESSMENT + ATTEMPT
+  // LOAD MOCK EXAM + SUBJECTS
   // ============================================
 
-  const loadAssessment = async () => {
+  const loadMockExam = async () => {
     try {
       // Get logged-in student
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -38,92 +38,75 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Fetch attempt using student_id
-      const { data: attempt, error: attemptError } = await supabase
-        .from("attempts")
-        .select("*, assessments(*)")
-        .eq("id", attemptId)
-        .eq("student_id", user.id)
+      // Fetch mock exam from "mock_exam" table with profiles join
+      const { data: mock, error: mockError } = await supabase
+        .from("mock_exam")
+        .select(`
+          *,
+          profiles:created_by (email, full_name)  // Adjust 'created_by' to your actual FK column linking to profiles
+        `)
+        .eq("id", mockExamId)
         .single();
 
-      if (attemptError || !attempt) {
-        toast.error("Attempt not found or unauthorized");
+      if (mockError || !mock) {
+        toast.error("Mock exam not found");
         navigate("/dashboard");
         return;
       }
 
-      // If attempt already submitted
-      if (attempt.submitted_at) {
-        toast.error("You have already completed this assessment");
-        navigate("/dashboard");
-        return;
-      }
-
-      // Check if student already submitted any attempt for this assessment
-      const { data: previousAttempts, error: prevError } = await supabase
+      // Check if student already attempted this mock exam
+      const { data: existingAttempts, error: attemptError } = await supabase
         .from("attempts")
         .select("id")
-        .eq("assessment_id", attempt.assessment_id)
+        .eq("mock_exam_id", mockExamId)
         .eq("student_id", user.id)
         .not("submitted_at", "is", null);
 
-      if (prevError) {
-        toast.error("Failed to verify assessment history");
+      if (attemptError) {
+        toast.error("Failed to verify attempt history");
         navigate("/dashboard");
         return;
       }
 
-      if (previousAttempts.length > 0) {
-        toast.error("You have already completed this assessment");
+      if (existingAttempts.length > 0) {
+        toast.error("You have already completed this mock exam");
         navigate("/dashboard");
         return;
       }
 
-      // Set assessment
-      setAssessment(attempt.assessments);
+      // Set mock exam
+      setMockExam(mock);
 
-      // Set duration
-      setTimeRemaining(attempt.assessments.duration_minutes * 60);
+      // Set subjects from JSON field
+      setSubjects(mock.subjects || []);
 
-      // Load questions
-      const { data: questionsData } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("assessment_id", attempt.assessment_id)
-        .order("created_at");
-
-      setQuestions(questionsData);
-
-      // Update total questions in attempt
-      await supabase
-        .from("attempts")
-        .update({ total_questions: questionsData.length })
-        .eq("id", attemptId);
+      // Set duration (total for mock exam)
+      setTimeRemaining(mock.total_duration_minutes * 60);
 
       setLoading(false);
 
     } catch (err) {
       console.error(err);
-      toast.error("Failed to load assessment");
+      toast.error("Failed to load mock exam");
       navigate("/dashboard");
     }
   };
 
   useEffect(() => {
-    if (!attemptId) {
-      toast.error("Invalid assessment link");
+    if (!mockExamId) {
+      toast.error("Invalid mock exam link");
       navigate("/dashboard");
       return;
     }
-    loadAssessment();
-  }, [attemptId]);
+    loadMockExam();
+  }, [mockExamId]);
 
   // ============================================
   // TIMER
   // ============================================
 
   useEffect(() => {
-    if (!assessment) return;
+    if (!mockExam) return;
 
     if (timeRemaining <= 0) {
       handleSubmit(true);
@@ -135,7 +118,7 @@ const TakeAssessment = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, assessment]);
+  }, [timeRemaining, mockExam]);
 
   // ============================================
   // AUTO-SUBMIT ON LEAVING TAB
@@ -158,15 +141,7 @@ const TakeAssessment = () => {
   }, []);
 
   // ============================================
-  // SAVE ANSWER
-  // ============================================
-
-  const handleAnswerChange = (questionId, value) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
-
-  // ============================================
-  // SUBMIT
+  // SUBMIT (OVERALL MOCK EXAM)
   // ============================================
 
   const handleSubmit = async (autoSubmitted = false) => {
@@ -174,53 +149,44 @@ const TakeAssessment = () => {
     setSubmitting(true);
 
     try {
-      let correct = 0;
+      // Calculate overall results from all attempts
+      let totalCorrect = 0;
+      let totalQuestions = 0;
 
-      for (const q of questions) {
-        const selected = answers[q.id];
-        const isCorrect = selected === q.correct_answer;
-        if (isCorrect) correct++;
-
-        await supabase.from("answers").insert({
-          attempt_id: attemptId,
-          question_id: q.id,
-          selected_answer: selected || null,
-          is_correct: isCorrect,
-        });
+      for (const subject of subjects) {
+        const attemptId = attempts[subject.assessmentId];  // Consistent key
+        if (attemptId) {
+          const { data: attempt, error } = await supabase
+            .from("attempts")
+            .select("score, total_questions")
+            .eq("id", attemptId)
+            .single();
+          if (!error && attempt) {
+            totalCorrect += attempt.score || 0;
+            totalQuestions += attempt.total_questions || 0;
+          }
+        }
       }
 
-      const passed = correct >= (assessment?.passing_score || 0);
+      const passed = totalCorrect >= (mockExam?.passing_score || 0);
 
-      const { error: updateErr } = await supabase
-        .from("attempts")
-        .update({
-          score: correct,
-          passed,
-          submitted_at: new Date().toISOString(),
-          auto_submitted: autoSubmitted,
-        })
-        .eq("id", attemptId);
-
-      if (updateErr) {
-        toast.error("Submission blocked by RLS policy");
-        return;
+      // Send result email (safe with joined profiles data)
+      const percentage = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+      if (mockExam?.profiles?.email) {
+        notifyUserAction(
+          mockExam.profiles.email,
+          mockExam.profiles.full_name,
+          "results_available",
+          `Mock Exam: You scored ${totalCorrect}/${totalQuestions} (${percentage}%).`
+        );
       }
 
-      // Send result email
-      const percentage = Math.round((correct / questions.length) * 100);
-      notifyUserAction(
-        assessment?.profiles?.email,
-        assessment?.profiles?.full_name,
-        "results_available",
-        `You scored ${correct}/${questions.length} (${percentage}%).`
-      );
-
-      toast.success("Assessment Submitted!");
+      toast.success("Mock Exam Submitted!");
       navigate("/dashboard");
 
     } catch (err) {
       console.error(err);
-      toast.error("Failed to submit assessment");
+      toast.error("Failed to submit mock exam");
     } finally {
       setSubmitting(false);
     }
@@ -241,15 +207,16 @@ const TakeAssessment = () => {
   // UI
   // ============================================
 
-  if (loading)
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         Loading...
       </div>
     );
+  }
 
-  const q = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const currentSubject = subjects[currentSubjectIndex];
+  const overallProgress = ((currentSubjectIndex + 1) / subjects.length) * 100;
 
   return (
     <div className="min-h-screen p-6">
@@ -258,56 +225,53 @@ const TakeAssessment = () => {
           <CardHeader>
             <div className="flex justify-between">
               <div>
-                <CardTitle>{assessment.title}</CardTitle>
+                <CardTitle>{mockExam.title} - {currentSubject.subject}</CardTitle>
                 <CardDescription>
-                  Question {currentQuestionIndex + 1} of {questions.length}
+                  Subject {currentSubjectIndex + 1} of {subjects.length}
                 </CardDescription>
               </div>
 
               <div className="flex items-center gap-2 font-bold">
                 <Clock className="w-5 h-5" />
-                {formatTime(timeRemaining)}  {/* Updated to show HH:MM:SS */}
+                {formatTime(timeRemaining)}
               </div>
             </div>
-            <Progress value={progress} className="mt-3" />
+            <Progress value={overallProgress} className="mt-3" />
           </CardHeader>
         </Card>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>{q.question_text}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={answers[q.id] || ""}
-              onValueChange={(v) => handleAnswerChange(q.id, v)}
-            >
-              {["A", "B", "C", "D"].map((opt) => (
-                <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
-                  <RadioGroupItem value={opt} id={opt} />
-                  <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}`]}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
+        <SubjectAssessment
+          subjectData={currentSubject}
+          mockExamId={mockExamId}
+          timeRemaining={timeRemaining}
+          onComplete={() => {
+            if (currentSubjectIndex < subjects.length - 1) {
+              setCurrentSubjectIndex((i) => i + 1);
+            } else {
+              handleSubmit(false);
+            }
+          }}
+          onAttemptCreated={(attemptId) => {
+            setAttempts((prev) => ({ ...prev, [currentSubject.assessmentId]: attemptId }));
+          }}
+        />
 
         <div className="flex justify-between mt-6">
           <Button
-            onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
-            disabled={currentQuestionIndex === 0}
+            onClick={() => setCurrentSubjectIndex((i) => Math.max(0, i - 1))}
+            disabled={currentSubjectIndex === 0}
             variant="outline"
           >
-            <ChevronLeft /> Previous
+            <ChevronLeft /> Previous Subject
           </Button>
 
-          {currentQuestionIndex < questions.length - 1 ? (
-            <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
-              Next <ChevronRight />
+          {currentSubjectIndex < subjects.length - 1 ? (
+            <Button onClick={() => setCurrentSubjectIndex((i) => i + 1)}>
+              Next Subject <ChevronRight />
             </Button>
           ) : (
             <Button onClick={() => handleSubmit(false)} disabled={submitting}>
-              Submit Assessment
+              Submit Mock Exam
             </Button>
           )}
         </div>
@@ -316,4 +280,167 @@ const TakeAssessment = () => {
   );
 };
 
-export default TakeAssessment;
+// Sub-component for each subject assessment (inlined, following TakeAssessment template)
+const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete, onAttemptCreated }) => {
+  const [questions, setQuestions] = useState([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [attemptId, setAttemptId] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load questions from subject data
+  useEffect(() => {
+    if (subjectData && subjectData.questions) {
+      setQuestions(subjectData.questions);
+      setLoading(false);
+    }
+  }, [subjectData]);
+
+  // Create attempt when questions load
+  useEffect(() => {
+    const createAttempt = async () => {
+      if (questions.length > 0 && mockExamId) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const { data: attempt, error } = await supabase
+            .from("attempts")
+            .insert({
+              student_id: user.id,
+              mock_exam_id: mockExamId,
+            })
+            .select()
+            .single();
+
+          if (!error && attempt) {
+            setAttemptId(attempt.id);
+            onAttemptCreated(attempt.id);
+          }
+        } catch (err) {
+          console.error("Failed to create attempt:", err);
+          toast.error("Failed to start assessment");
+        }
+      }
+    };
+    createAttempt();
+  }, [questions, mockExamId]);
+
+  // Auto-submit if overall time expires
+  useEffect(() => {
+    if (timeRemaining <= 0) {
+      handleSubmit(true);
+    }
+  }, [timeRemaining]);
+
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleSubmit = async (autoSubmitted = false) => {
+    if (submitting || !attemptId) return;
+    setSubmitting(true);
+
+    try {
+      let correct = 0;
+      const totalQuestions = questions.length;
+
+      for (const q of questions) {
+        const selected = answers[q.id];
+        const isCorrect = selected === q.correct_answer;
+        if (isCorrect) correct++;
+
+        await supabase.from("answers").insert({
+          attempt_id: attemptId,
+          question_id: q.id,
+          selected_answer: selected || null,
+          is_correct: isCorrect,
+        });
+      }
+
+      const passed = correct >= 50;  // Example passing score
+
+      const { error: updateErr } = await supabase
+        .from("attempts")
+        .update({
+          score: correct,
+          total_questions: totalQuestions,
+          passed,
+          submitted_at: new Date().toISOString(),
+          auto_submitted: autoSubmitted,
+        })
+        .eq("id", attemptId);
+
+      if (updateErr) {
+        toast.error("Submission blocked by RLS policy");
+        return;
+      }
+
+      onComplete();
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit subject");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading questions...
+      </div>
+    );
+  }
+
+  const q = questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+  return (
+    <>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{q.question_text}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RadioGroup
+            value={answers[q.id] || ""}
+            onValueChange={(v) => handleAnswerChange(q.id, v)}
+          >
+            {["A", "B", "C", "D"].map((opt) => (
+              <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
+                <RadioGroupItem value={opt} id={opt} />
+                <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}`]}</Label>
+              </div>
+            ))}
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-between mt-6">
+        <Button
+          onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+          disabled={currentQuestionIndex === 0}
+          variant="outline"
+        >
+          <ChevronLeft /> Previous
+        </Button>
+
+        {currentQuestionIndex < questions.length - 1 ? (
+          <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
+            Next <ChevronRight />
+          </Button>
+        ) : (
+          <Button onClick={() => handleSubmit(false)} disabled={submitting}>
+            Submit Subject
+          </Button>
+        )}
+      </div>
+    </>
+  );
+};
+
+export default TakeMockExam;
