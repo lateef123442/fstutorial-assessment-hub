@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
-import MockExam from "./student/MockExam";  // Ensure this file exists at ./student/MockExam.tsx
+import StudentMockExams from "./student/StudentMockExams";  // Ensure this file exists at ./student/MockExam.tsx
 import MyResults from "./student/MyResults";
 
 interface StudentDashboardProps {
@@ -66,7 +66,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="mock-exams" className="animate-fade-in">
-            <MockExam studentId={user.id} />
+            <StudentMockExams studentId={user.id} />
           </TabsContent>
         </Tabs>
       </main>
