@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
-import Mock from "./student/Mock";
+import Mock from "./student/Mock"; 
 import MyResults from "./student/MyResults";
 
 
@@ -41,38 +41,36 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
         </div>
       </header>
 
-    <main className="container mx-auto px-4 py-8">
-  <Tabs defaultValue="assessments">
-    <TabsList className="flex w-full mb-8">  {/* Changed to flex for horizontal layout in a single line */}
-      <TabsTrigger value="assessments" className="flex items-center gap-2">
-        <FileText className="w-3 h-4" />
-        Take Assessment
-      </TabsTrigger>
-      <TabsTrigger value="results" className="flex items-center gap-2">
-        <Trophy className="w-3 h-4" />
-        My Results
-      </TabsTrigger>
-      <TabsTrigger value="mock-exams" className="flex items-center gap-2">
-        <FileText className="w-3 h-4" />
-        Mock Exams
-      </TabsTrigger>
-    </TabsList>
+      <main className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="assessments">
+          <TabsList className="flex w-full mb-8">  {/* Changed to flex for horizontal layout in a single line */}
+            <TabsTrigger value="assessments" className="flex items-center gap-2">
+              <FileText className="w-3 h-4" />
+              Take Assessment
+            </TabsTrigger>
+            <TabsTrigger value="results" className="flex items-center gap-2">
+              <Trophy className="w-3 h-4" />
+              My Results
+            </TabsTrigger>
+            <TabsTrigger value="mock-exams" className="flex items-center gap-2">
+              <FileText className="w-3 h-4" />
+              Mock Exams
+            </TabsTrigger>
+          </TabsList>
 
-    <TabsContent value="assessments" className="animate-fade-in">
-      <AvailableAssessments studentId={user.id} />
-    </TabsContent>
+          <TabsContent value="assessments" className="animate-fade-in">
+            <AvailableAssessments studentId={user.id} />
+          </TabsContent>
 
-    <TabsContent value="results" className="animate-fade-in">
-      <MyResults studentId={user.id} />
-    </TabsContent>
+          <TabsContent value="results" className="animate-fade-in">
+            <MyResults studentId={user.id} />
+          </TabsContent>
 
-    <TabsContent value="mock-exams" className="animate-fade-in">  {/* Fixed value to "mock-exams" */}
-      <Mock studentId={user.id} />  {/* Capitalized to <Mock> */}
-    </TabsContent>
-  </Tabs>
-</main>
-
-
+          <TabsContent value="mock-exams" className="animate-fade-in">
+            <Mock studentId={user.id} />
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 };
