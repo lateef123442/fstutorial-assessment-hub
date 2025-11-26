@@ -40,9 +40,9 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
         </div>
       </header>
 
-     <main className="container mx-auto px-4 py-8">
+    <main className="container mx-auto px-4 py-8">
   <Tabs defaultValue="assessments">
-    <TabsList className="grid w-full grid-cols-3 mb-8">  {/* Changed to grid-cols-3 for 3 tabs */}
+    <TabsList className="flex w-full mb-8">  {/* Changed to flex for horizontal layout in a single line */}
       <TabsTrigger value="assessments" className="flex items-center gap-2">
         <FileText className="w-3 h-4" />
         Take Assessment
@@ -70,6 +70,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
     </TabsContent>
   </Tabs>
 </main>
+
 
     </div>
   );
