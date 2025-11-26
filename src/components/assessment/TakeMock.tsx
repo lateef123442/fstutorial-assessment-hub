@@ -470,4 +470,4 @@ const SubjectAssessment = ({ assessmentId, onComplete, onAttemptCreated }) => {
   );
 };
 
-export default TakeMockExam;
+export default TakeMock;
