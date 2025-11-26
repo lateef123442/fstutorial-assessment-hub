@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
-import StudentMockExams from "./student/StudentMockExams";  // Ensure this file exists at ./student/MockExam.tsx
+import StudentMockExams from "./student/StudentMockExams";  // Ensure the file is named StudentMockExams.tsx
 import MyResults from "./student/MyResults";
 
 interface StudentDashboardProps {
@@ -42,7 +42,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="assessments">
-          <TabsList className="flex w-full mb-8">  {/* This ensures horizontal tabs in a single line */}
+          <TabsList className="flex w-full mb-8">  {/* Horizontal tabs in a single line */}
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-3 h-4" />
               Take Assessment
