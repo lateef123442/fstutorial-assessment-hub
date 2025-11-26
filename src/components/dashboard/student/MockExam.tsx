@@ -100,4 +100,4 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   );
 };
 
-export default StudentMockExams;
+export default MockExam;
