@@ -6,11 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Added Tabs import
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
-import { User } from "@supabase/supabase-js"; // For typing
+import { User } from "@supabase/supabase-js";
 
 interface Question {
   question_text: string;
@@ -22,21 +22,26 @@ interface Question {
 }
 
 interface Subject {
-  id: string; // UUID
+  id: string;
   name: string;
 }
 
 interface SubjectData {
-  subjectId: string; // UUID
-  subject: string; // Name
+  subjectId: string;
+  subject: string;
   questions: Question[];
 }
 
-const CreateMockExam = () => {  // Removed adminId prop
+const CreateMockExam = () => {
   const [formData, setFormData] = useState({
     title: "",
     total_duration_minutes: 120,
+    duration_minutes: 30,  // Added
     passing_score: 50,
+    subject_id: "",  // Added
+    is_active: true,  // Added
+    scheduled_date: "",  // Added
+    scheduled_time: "",  // Added
   });
 
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
@@ -55,7 +60,6 @@ const CreateMockExam = () => {  // Removed adminId prop
       }
       setUser(user);
 
-      // Check role in user_roles
       const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
@@ -152,14 +156,20 @@ const CreateMockExam = () => {  // Removed adminId prop
     }
 
     try {
-      // Create mock exam
+      // Create mock exam in "mock_exam" table
       const { data: mockExam, error: mockError } = await supabase
-        .from("mock_exams")
+        .from("mock_exam")
         .insert({
           title: formData.title,
           total_duration_minutes: formData.total_duration_minutes,
+          duration_minutes: formData.duration_minutes,  // Added
           passing_score: formData.passing_score,
-          created_by: user.id,  // Use user.id
+          subject_id: formData.subject_id || null,  // Added
+          admin_id: user.id,  // Added, from user_roles
+          is_active: formData.is_active,  // Added
+          scheduled_date: formData.scheduled_date || null,  // Added
+          scheduled_time: formData.scheduled_time || null,  // Added
+          created_by: user.id,
         })
         .select()
         .single();
@@ -173,7 +183,7 @@ const CreateMockExam = () => {  // Removed adminId prop
           .insert({
             title: `${formData.title} - ${subj.subject}`,
             subject_id: subj.subjectId,
-            teacher_id: user.id,  // Use user.id
+            teacher_id: user.id,
             duration_minutes: Math.floor(formData.total_duration_minutes / subjects.length),
             passing_score: 0,
           })
@@ -186,7 +196,6 @@ const CreateMockExam = () => {  // Removed adminId prop
         const { error: qError } = await supabase.from("questions").insert(questionsWithId);
         if (qError) throw qError;
 
-        // Link to mock exam
         await supabase.from("mock_exam_assessments").insert({
           mock_exam_id: mockExam.id,
           assessment_id: assessment.id,
@@ -215,7 +224,16 @@ const CreateMockExam = () => {  // Removed adminId prop
 
       toast.success("Mock Exam created successfully!");
       // Reset
-      setFormData({ title: "", total_duration_minutes: 120, passing_score: 50 });
+      setFormData({
+        title: "",
+        total_duration_minutes: 120,
+        duration_minutes: 30,
+        passing_score: 50,
+        subject_id: "",
+        is_active: true,
+        scheduled_date: "",
+        scheduled_time: "",
+      });
       setSelectedSubjectIds([]);
       setSubjects([]);
     } catch (error: any) {
@@ -247,9 +265,9 @@ const CreateMockExam = () => {  // Removed adminId prop
                 />
               </div>
               <div>
-                <Label htmlFor="duration">Total Duration (minutes)</Label>
+                <Label htmlFor="total_duration">Total Duration (minutes)</Label>
                 <Input
-                  id="duration"
+                  id="total_duration"
                   type="number"
                   value={formData.total_duration_minutes}
                   onChange={(e) => setFormData({ ...formData, total_duration_minutes: parseInt(e.target.value) })}
@@ -257,7 +275,17 @@ const CreateMockExam = () => {  // Removed adminId prop
                 />
               </div>
               <div>
-                <Label htmlFor="passing">Overall Passing Score (%)</Label>
+                <Label htmlFor="duration">Duration (minutes)</Label>  {/* Added */}
+                <Input
+                  id="duration"
+                  type="number"
+                  value={formData.duration_minutes}
+                  onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="passing">Passing Score (%)</Label>
                 <Input
                   id="passing"
                   type="number"
@@ -265,6 +293,47 @@ const CreateMockExam = () => {  // Removed adminId prop
                   onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })}
                   required
                 />
+              </div>
+              <div>
+                <Label htmlFor="subject">Main Subject</Label>  {/* Added */}
+                <Select value={formData.subject_id} onValueChange={(value) => setFormData({ ...formData, subject_id: value })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubjects.map((subj) => (
+                      <SelectItem key={subj.id} value={subj.id}>
+                        {subj.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="scheduled_date">Scheduled Date</Label>  {/* Added */}
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduled_time">Scheduled Time</Label>  {/* Added */}
+                <Input
+                  id="scheduled_time"
+                  type="time"
+                  value={formData.scheduled_time}
+                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked as boolean })}
+                />
+                <Label htmlFor="is_active">Is Active</Label>  {/* Added */}
               </div>
             </div>
 
@@ -286,7 +355,7 @@ const CreateMockExam = () => {  // Removed adminId prop
 
             {subjects.length > 0 && (
               <Tabs defaultValue={subjects[0]?.subjectId} className="w-full">
-                <TabsList className="w-full justify-start"> {/* Horizontal tabs in a straight line */}
+                <TabsList className="w-full justify-start">
                   {subjects.map((subj) => (
                     <TabsTrigger key={subj.subjectId} value={subj.subjectId} className="flex-1">
                       {subj.subject}
