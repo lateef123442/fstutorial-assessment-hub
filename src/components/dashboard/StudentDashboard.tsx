@@ -66,7 +66,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
     </TabsContent>
 
     <TabsContent value="mock-exams" className="animate-fade-in">  {/* Fixed value to "mock-exams" */}
-      <Mock studentId={user.id} />  {/* Capitalized to <Mock> */}
+      <mock studentId={user.id} />  {/* Capitalized to <Mock> */}
     </TabsContent>
   </Tabs>
 </main>
