@@ -174,4 +174,4 @@ const StudentMockExams = () => {
   );
 };
 
-export default Mock;  
+export default MockExam;  
