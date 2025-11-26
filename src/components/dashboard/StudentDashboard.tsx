@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
+import Mock from "./student/Mock";
 import MyResults from "./student/MyResults";
-import mock from "./student/Mock";
+
 
 interface StudentDashboardProps {
   user: User;
@@ -66,7 +67,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
     </TabsContent>
 
     <TabsContent value="mock-exams" className="animate-fade-in">  {/* Fixed value to "mock-exams" */}
-      <mock studentId={user.id} />  {/* Capitalized to <Mock> */}
+      <Mock studentId={user.id} />  {/* Capitalized to <Mock> */}
     </TabsContent>
   </Tabs>
 </main>
