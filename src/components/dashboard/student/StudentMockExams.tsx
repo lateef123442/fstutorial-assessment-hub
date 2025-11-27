@@ -17,8 +17,6 @@ interface MockExam {
   passing_score: number;
   scheduled_date?: string;
   scheduled_time?: string;
-  subject_id?: string;  // Added
-  subjects?: { name: string };  // Will be attached separately
 }
 
 const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
@@ -32,10 +30,10 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
 
   const fetchMockExams = async () => {
     try {
-      // Step 1: Fetch mock exams without joins
+      // Fetch mock exams without subject_id (since it doesn't exist)
       const { data: exams, error: examsError } = await supabase
         .from("mock_exam")
-        .select("id, title, total_duration_minutes, passing_score, scheduled_date, scheduled_time, subject_id")
+        .select("id, title, total_duration_minutes, passing_score, scheduled_date, scheduled_time")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -46,7 +44,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
         return;
       }
 
-      // Step 2: Filter by scheduled date/time
+      // Filter by scheduled date/time
       const now = new Date();
       const available = exams.filter((exam) => {
         if (!exam.scheduled_date) return true;
@@ -60,26 +58,11 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
         return now >= scheduledDateTime;
       });
 
-      // Step 3: Fetch subjects separately for each exam
-      const examsWithSubjects = await Promise.all(
-        available.map(async (exam) => {
-          if (!exam.subject_id) {
-            return { ...exam, subjects: { name: "No subject" } };  // Handle null subject_id
-          }
-          const { data: subject, error: subjectError } = await supabase
-            .from("subjects")
-            .select("name")
-            .eq("id", exam.subject_id)
-            .single();
-
-          if (subjectError) {
-            console.warn(`Failed to fetch subject for exam ${exam.id}:`, subjectError);
-            return { ...exam, subjects: { name: "Unknown subject" } };
-          }
-
-          return { ...exam, subjects: subject };
-        })
-      );
+      // Set exams with default subject name (since no subject_id)
+      const examsWithSubjects = available.map((exam) => ({
+        ...exam,
+        subjects: { name: "General Subject" },  // Default name
+      }));
 
       setMockExams(examsWithSubjects);
     } catch (err) {
