@@ -79,6 +79,19 @@ const TakeAssessment = () => {
         return;
       }
 
+      // Check if this assessment is part of a mock exam (exclude it)
+      const { data: mockLink } = await supabase
+        .from("mock_exam_assessments")
+        .select("mock_exam_id")
+        .eq("assessment_id", attempt.assessment_id)
+        .single();
+
+      if (mockLink) {
+        toast.error("This assessment is part of a mock exam. Please take it from the mock exam page.");
+        navigate("/dashboard");  // Or redirect to `/take-mock-exam/${mockLink.mock_exam_id}` if you want to redirect to the mock exam
+        return;
+      }
+
       // Set assessment
       setAssessment(attempt.assessments);
 
