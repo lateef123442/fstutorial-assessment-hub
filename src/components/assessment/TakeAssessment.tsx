@@ -25,7 +25,7 @@ const TakeMockExam = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // ============================================
-  // LOAD MOCK EXAM + SUBJECTS
+  // LOAD MOCK EXAM + SUBJECTS + QUESTIONS
   // ============================================
 
   const loadMockExam = async () => {
@@ -38,12 +38,15 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch mock exam with subjects join (using subject_id FK)
+      // Fetch mock exam with subjects and questions joins
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
         .select(`
           id, title, total_duration_minutes, passing_score, subject_id, created_by,
-          subject:subject_id (id, name, questions),  // Join to subject table
+          subjects:subject_id (
+            id, name,
+            questions:subject_id (id, question_text, correct_answer, option_a, option_b, option_c, option_d)
+          ),
           profiles:created_by (email, full_name)
         `)
         .eq("id", mockExamId)
@@ -59,7 +62,7 @@ const TakeMockExam = () => {
       const { data: existingAttempts, error: attemptError } = await supabase
         .from("attempts")
         .select("id")
-        .eq("assessment_id", mockExamId)  // Updated to assessment_id
+        .eq("assessment_id", mockExamId)
         .eq("student_id", user.id)
         .not("submitted_at", "is", null);
 
@@ -78,8 +81,8 @@ const TakeMockExam = () => {
       // Set mock exam
       setMockExam(mock);
 
-      // Set subjects from joined data (array of subject objects)
-      setSubjects(mock.subject ? [mock.subject] : []);  // Assuming one subject per exam; adjust if multiple
+      // Set subjects from joined data (array of subjects with questions)
+      setSubjects(mock.subjects ? [mock.subjects] : []);  // Assuming one subject; adjust if multiple
 
       // Set duration (total for mock exam)
       setTimeRemaining(mock.total_duration_minutes * 60);
@@ -155,7 +158,7 @@ const TakeMockExam = () => {
       let totalQuestions = 0;
 
       for (const subject of subjects) {
-        const attemptId = attempts[subject.id];  // Use subject.id as key (from joined data)
+        const attemptId = attempts[subject.id];  // Use subject.id as key
         if (attemptId) {
           const { data: attempt, error } = await supabase
             .from("attempts")
@@ -226,7 +229,7 @@ const TakeMockExam = () => {
           <CardHeader>
             <div className="flex justify-between">
               <div>
-                <CardTitle>{mockExam.title} - {currentSubject?.name}</CardTitle>  {/* Updated to subject.name */}
+                <CardTitle>{mockExam.title} - {currentSubject?.name}</CardTitle>
                 <CardDescription>
                   Subject {currentSubjectIndex + 1} of {subjects.length}
                 </CardDescription>
@@ -253,7 +256,7 @@ const TakeMockExam = () => {
             }
           }}
           onAttemptCreated={(attemptId) => {
-            setAttempts((prev) => ({ ...prev, [currentSubject.id]: attemptId }));  // Use subject.id as key
+            setAttempts((prev) => ({ ...prev, [currentSubject.id]: attemptId }));
           }}
         />
 
@@ -311,8 +314,8 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
             .from("attempts")
             .insert({
               student_id: user.id,
-              assessment_id: mockExamId,  // Updated to assessment_id
-              started_at: new Date().toISOString(),  // Added started_at
+              assessment_id: mockExamId,
+              started_at: new Date().toISOString(),
             })
             .select()
             .single();
@@ -369,7 +372,7 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
         .update({
           score: correct,
           total_questions: totalQuestions,
-          passes: passed,  // Updated to passes
+          passes: passed,
           submitted_at: new Date().toISOString(),
           auto_submitted: autoSubmitted,
         })
