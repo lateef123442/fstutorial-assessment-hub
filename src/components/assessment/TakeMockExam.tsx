@@ -29,8 +29,16 @@ const TakeMockExam = () => {
   // ============================================
 
   const loadMockExam = async () => {
-    console.log("Loading mock exam with ID:", mockExamId);
     try {
+      // Get logged-in student
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("You must be logged in to take this assessment");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Fetch mock exam with subjects and questions joins
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
         .select(`
@@ -44,10 +52,7 @@ const TakeMockExam = () => {
         .eq("id", mockExamId)
         .single();
 
-      console.log("Query result - data:", mock, "error:", mockError);
-
       if (mockError || !mock) {
-        console.error("Mock exam fetch failed:", mockError);
         toast.error("Mock exam not found");
         navigate("/dashboard");
         return;
@@ -77,7 +82,7 @@ const TakeMockExam = () => {
       setMockExam(mock);
 
       // Set subjects from joined data (array of subjects with questions)
-      setSubjects(mock.subjects ? [mock.subjects] : []);
+      setSubjects(mock.subjects ? [mock.subjects] : []);  // Assuming one subject; adjust if multiple
 
       // Set duration (total for mock exam)
       setTimeRemaining(mock.total_duration_minutes * 60);
@@ -85,7 +90,7 @@ const TakeMockExam = () => {
       setLoading(false);
 
     } catch (err) {
-      console.error("Load mock exam error:", err);
+      console.error(err);
       toast.error("Failed to load mock exam");
       navigate("/dashboard");
     }
@@ -153,7 +158,7 @@ const TakeMockExam = () => {
       let totalQuestions = 0;
 
       for (const subject of subjects) {
-        const attemptId = attempts[subject.id];
+        const attemptId = attempts[subject.id];  // Use subject.id as key
         if (attemptId) {
           const { data: attempt, error } = await supabase
             .from("attempts")
@@ -411,7 +416,7 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
           >
             {["A", "B", "C", "D"].map((opt) => (
               <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
-                                <RadioGroupItem value={opt} id={opt} />
+                <RadioGroupItem value={opt} id={opt} />
                 <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}`]}</Label>
               </div>
             ))}
