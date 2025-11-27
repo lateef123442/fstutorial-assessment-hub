@@ -17,7 +17,8 @@ interface MockExam {
   passing_score: number;
   scheduled_date?: string;
   scheduled_time?: string;
-  subjects?: { name: string };  // From join
+  subject_id?: string;  // Added
+  subjects?: { name: string };  // Will be attached separately
 }
 
 const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
@@ -30,18 +31,24 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   }, []);
 
   const fetchMockExams = async () => {
-    const { data, error } = await supabase
-      .from("mock_exam")
-      .select(`
-        id, title, total_duration_minutes, passing_score, scheduled_date, scheduled_time,
-        subjects:subject_id (name)  // Join to get subject name
-      `)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+    try {
+      // Step 1: Fetch mock exams without joins
+      const { data: exams, error: examsError } = await supabase
+        .from("mock_exam")
+        .select("id, title, total_duration_minutes, passing_score, scheduled_date, scheduled_time, subject_id")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
-    if (!error && data) {
+      if (examsError) {
+        console.error("Failed to fetch mock exams:", examsError);
+        toast.error("Failed to load mock exams");
+        setLoading(false);
+        return;
+      }
+
+      // Step 2: Filter by scheduled date/time
       const now = new Date();
-      const available = data.filter((exam) => {
+      const available = exams.filter((exam) => {
         if (!exam.scheduled_date) return true;
         
         const scheduledDateTime = new Date(exam.scheduled_date);
@@ -52,13 +59,35 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
         
         return now >= scheduledDateTime;
       });
-      
-      setMockExams(available);
-    } else {
-      console.error("Failed to fetch mock exams:", error);
+
+      // Step 3: Fetch subjects separately for each exam
+      const examsWithSubjects = await Promise.all(
+        available.map(async (exam) => {
+          if (!exam.subject_id) {
+            return { ...exam, subjects: { name: "No subject" } };  // Handle null subject_id
+          }
+          const { data: subject, error: subjectError } = await supabase
+            .from("subjects")
+            .select("name")
+            .eq("id", exam.subject_id)
+            .single();
+
+          if (subjectError) {
+            console.warn(`Failed to fetch subject for exam ${exam.id}:`, subjectError);
+            return { ...exam, subjects: { name: "Unknown subject" } };
+          }
+
+          return { ...exam, subjects: subject };
+        })
+      );
+
+      setMockExams(examsWithSubjects);
+    } catch (err) {
+      console.error("Error fetching mock exams:", err);
       toast.error("Failed to load mock exams");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleStartMockExam = (examId: string) => {
