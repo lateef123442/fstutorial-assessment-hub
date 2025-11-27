@@ -29,7 +29,7 @@ const TakeMockExam = () => {
   const loadMockExam = async () => {
     console.log("Loading mock exam with ID:", mockExamId);
     try {
-      // Step 1: Fetch mock exam without joins (to avoid FK issues)
+      // Step 1: Fetch mock exam without joins
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
         .select("id, title, total_duration_minutes, passing_score, subject_id, created_by")
@@ -41,6 +41,14 @@ const TakeMockExam = () => {
       if (mockError || !mock) {
         console.error("Mock exam fetch failed:", mockError);
         toast.error("Mock exam not found");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Check if subject_id is null (invalid data)
+      if (!mock.subject_id) {
+        console.error("Mock exam has no subject_id");
+        toast.error("This mock exam is not properly configured (missing subject)");
         navigate("/dashboard");
         return;
       }
@@ -89,7 +97,7 @@ const TakeMockExam = () => {
           .single();
 
         if (profileError) {
-          console.warn("Profiles fetch failed:", profileError);  // Not critical, so warn instead of error
+          console.warn("Profiles fetch failed:", profileError);
         } else {
           profileData = profile;
         }
