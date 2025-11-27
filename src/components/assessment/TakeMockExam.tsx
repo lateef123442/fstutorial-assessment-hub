@@ -201,29 +201,31 @@ const TakeMockExam = () => {
   // SUBMIT (OVERALL MOCK EXAM)
   // ============================================
 
-  const handleSubmit = async (autoSubmitted = false) => {
-    if (submitting) return;
-    setSubmitting(true);
+ const handleSubmit = async (autoSubmitted = false) => {
+  if (submitting) return;
+  setSubmitting(true);
 
-    try {
-      // Calculate overall results from all attempts
-      let totalCorrect = 0;
-      let totalQuestions = 0;
+  try {
+    // Calculate overall results from all attempts
+    let totalCorrect = 0;
+    let totalQuestions = 0;
 
-      for (const subject of subjects) {
-        const attemptId = attempts[subject.id];
-        if (attemptId) {
-          const { data: attempt, error } = await supabase
-            .from("mock_exam_assessments")  // Updated table name
-            .select("score, total_questions")
-            .eq("id", attemptId)
-            .single();
-          if (!error && attempt) {
-            totalCorrect += attempt.score || 0;
-            totalQuestions += attempt.total_questions || 0;
-          }
+    for (const subject of subjects) {
+      const attemptId = attempts[subject.id];
+      if (attemptId) {
+        const { data: attempt, error } = await supabase
+          .from("attempts")  // Ensure this is 'attempts'
+          .select("score, total_questions")
+          .eq("id", attemptId)
+          .single();
+        if (!error && attempt) {
+          totalCorrect += attempt.score || 0;
+          totalQuestions += attempt.total_questions || 0;
         }
       }
+    }
+
+   
 
       const passed = totalCorrect >= (mockExam?.passing_score || 0);
 
