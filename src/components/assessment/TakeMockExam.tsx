@@ -29,36 +29,54 @@ const TakeMockExam = () => {
   // ============================================
 
   const loadMockExam = async () => {
+    console.log("Loading mock exam with ID:", mockExamId);
     try {
-      // Get logged-in student
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        toast.error("You must be logged in to take this assessment");
-        navigate("/dashboard");
-        return;
-      }
-
-      // Fetch mock exam with subjects and questions joins
+      // Step 1: Fetch mock exam with subjects join (no nested questions)
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
         .select(`
           id, title, total_duration_minutes, passing_score, subject_id, created_by,
-          subjects:subject_id (
-            id, name,
-            questions:subject_id (id, question_text, correct_answer, option_a, option_b, option_c, option_d)
-          ),
+          subjects:subject_id (id, name),
           profiles:created_by (email, full_name)
         `)
         .eq("id", mockExamId)
         .single();
 
+      console.log("Mock exam query result - data:", mock, "error:", mockError);
+
       if (mockError || !mock) {
+        console.error("Mock exam fetch failed:", mockError);
         toast.error("Mock exam not found");
         navigate("/dashboard");
         return;
       }
 
+      // Step 2: Fetch questions for the subject separately
+      const { data: questions, error: questionsError } = await supabase
+        .from("questions")
+        .select("id, question_text, correct_answer, option_a, option_b, option_c, option_d")
+        .eq("subject_id", mock.subjects?.id);
+
+      console.log("Questions query result - data:", questions, "error:", questionsError);
+
+      if (questionsError) {
+        console.error("Questions fetch failed:", questionsError);
+        toast.error("Failed to load questions");
+        navigate("/dashboard");
+        return;
+      }
+
+      // Attach questions to the subject
+      const subjectWithQuestions = { ...mock.subjects, questions: questions || [] };
+
       // Check if student already attempted this mock exam
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast.error("You must be logged in");
+        navigate("/dashboard");
+        return;
+      }
+
       const { data: existingAttempts, error: attemptError } = await supabase
         .from("attempts")
         .select("id")
@@ -81,8 +99,8 @@ const TakeMockExam = () => {
       // Set mock exam
       setMockExam(mock);
 
-      // Set subjects from joined data (array of subjects with questions)
-      setSubjects(mock.subjects ? [mock.subjects] : []);  // Assuming one subject; adjust if multiple
+      // Set subjects (with questions attached)
+      setSubjects([subjectWithQuestions]);
 
       // Set duration (total for mock exam)
       setTimeRemaining(mock.total_duration_minutes * 60);
@@ -90,7 +108,7 @@ const TakeMockExam = () => {
       setLoading(false);
 
     } catch (err) {
-      console.error(err);
+      console.error("Load mock exam error:", err);
       toast.error("Failed to load mock exam");
       navigate("/dashboard");
     }
@@ -158,7 +176,7 @@ const TakeMockExam = () => {
       let totalQuestions = 0;
 
       for (const subject of subjects) {
-        const attemptId = attempts[subject.id];  // Use subject.id as key
+        const attemptId = attempts[subject.id];
         if (attemptId) {
           const { data: attempt, error } = await supabase
             .from("attempts")
