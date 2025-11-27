@@ -97,32 +97,39 @@ const TakeMockExam = () => {
         }
       }
 
-      // Check if student already attempted this mock exam
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        toast.error("You must be logged in");
-        navigate("/dashboard");
-        return;
-      }
+         // Check if student already attempted this mock exam
+   const { data: { user }, error: userError } = await supabase.auth.getUser();
+   if (userError || !user) {
+     console.error("User not authenticated:", userError);
+     toast.error("You must be logged in");
+     navigate("/dashboard");
+     return;
+   }
 
-      const { data: existingAttempts, error: attemptError } = await supabase
-        .from("mock_exam_assessments")  // Updated table name
-        .select("id")
-        .eq("assessment_id", mockExamId)
-        .eq("student_id", user.id)
-        .not("submitted_at", "is", null);
+   console.log("User ID:", user.id, "Mock Exam ID:", mockExamId);
 
-      if (attemptError) {
-        toast.error("Failed to verify attempt history");
-        navigate("/dashboard");
-        return;
-      }
+   const { data: existingAttempts, error: attemptError } = await supabase
+     .from("attempts")  // Ensure this is 'attempts', not 'mock_exam_assessments'
+     .select("id")
+     .eq("assessment_id", mockExamId)
+     .eq("student_id", user.id)
+     .not("submitted_at", "is", null);
 
-      if (existingAttempts.length > 0) {
-        toast.error("You have already completed this mock exam");
-        navigate("/dashboard");
-        return;
-      }
+   console.log("Attempt check - data:", existingAttempts, "error:", attemptError);
+
+   if (attemptError) {
+     console.error("Attempt query failed:", attemptError);
+     toast.error("Failed to verify attempt history");
+     navigate("/dashboard");
+     return;
+   }
+
+   if (existingAttempts.length > 0) {
+     toast.error("You have already completed this mock exam");
+     navigate("/dashboard");
+     return;
+   }
+   
 
       // Set mock exam (attach profile if fetched)
       setMockExam({ ...mock, profiles: profileData });
