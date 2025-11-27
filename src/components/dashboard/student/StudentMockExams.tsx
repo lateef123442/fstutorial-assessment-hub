@@ -4,14 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Clock, FileText, CheckCircle } from "lucide-react";
-import { toast } from "sonner";  // Added missing import
+import { toast } from "sonner";
 
 interface StudentMockExamsProps {
   studentId: string;
 }
 
+interface MockExam {
+  id: string;
+  title: string;
+  total_duration_minutes: number;
+  passing_score: number;
+  scheduled_date?: string;
+  scheduled_time?: string;
+  subjects?: { name: string };  // From join
+}
+
 const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
-  const [mockExams, setMockExams] = useState<any[]>([]);
+  const [mockExams, setMockExams] = useState<MockExam[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -22,7 +32,10 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   const fetchMockExams = async () => {
     const { data, error } = await supabase
       .from("mock_exam")
-      .select("*")
+      .select(`
+        id, title, total_duration_minutes, passing_score, scheduled_date, scheduled_time,
+        subjects:subject_id (name)  // Join to get subject name
+      `)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -49,6 +62,10 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   };
 
   const handleStartMockExam = (examId: string) => {
+    if (!examId) {
+      toast.error("Invalid exam ID");
+      return;
+    }
     navigate(`/take-mock-exam/${examId}`);
   };
 
@@ -74,7 +91,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
                     <div className="flex-1">
                       <h3 className="font-semibold text-lg">{exam.title}</h3>
                       <p className="text-sm text-muted-foreground mb-2">
-                        Subjects: {exam.subjects && Array.isArray(exam.subjects) ? exam.subjects.map((s: any) => s.subject).join(", ") : "No subjects"}
+                        Subject: {exam.subjects?.name || "No subject"}
                       </p>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -101,4 +118,4 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
   );
 };
 
-export default StudentMockExams;  // Fixed export to match component name and import
+export default StudentMockExams;
