@@ -29,10 +29,10 @@ const TakeMockExam = () => {
   const loadMockExam = async () => {
     console.log("Loading mock exam with ID:", mockExamId);
     try {
-      // Step 1: Fetch mock exam without joins
+      // Fetch mock exam
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
-        .select("id, title, total_duration_minutes, passing_score, subject_id, created_by")
+        .select("id, title, total_duration_minutes, passing_score, created_by")
         .eq("id", mockExamId)
         .single();
 
@@ -45,31 +45,23 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Check if subject_id is null (invalid data)
-      if (!mock.subject_id) {
-        console.error("Mock exam has no subject_id");
-        toast.error("This mock exam is not properly configured (missing subject)");
-        navigate("/dashboard");
-        return;
-      }
-
-      // Step 2: Fetch subjects separately
+      // Fetch a default subject (first one available)
       const { data: subjectData, error: subjectError } = await supabase
         .from("subjects")
         .select("id, name")
-        .eq("id", mock.subject_id)
+        .limit(1)
         .single();
 
       console.log("Subjects query result - data:", subjectData, "error:", subjectError);
 
       if (subjectError || !subjectData) {
-        console.error("Subjects fetch failed:", subjectError);
-        toast.error("Failed to load subject");
+        console.error("No subjects available:", subjectError);
+        toast.error("No subjects configured for this exam");
         navigate("/dashboard");
         return;
       }
 
-      // Step 3: Fetch questions for the subject
+      // Fetch questions for the default subject
       const { data: questions, error: questionsError } = await supabase
         .from("questions")
         .select("id, question_text, correct_answer, option_a, option_b, option_c, option_d")
@@ -87,7 +79,7 @@ const TakeMockExam = () => {
       // Attach questions to the subject
       const subjectWithQuestions = { ...subjectData, questions: questions || [] };
 
-      // Step 4: Fetch profiles separately (if needed for email)
+      // Fetch profiles separately (if needed for email)
       let profileData = null;
       if (mock.created_by) {
         const { data: profile, error: profileError } = await supabase
@@ -112,7 +104,7 @@ const TakeMockExam = () => {
       }
 
       const { data: existingAttempts, error: attemptError } = await supabase
-        .from("attempts")
+        .from("mock_exam_assessments")  // Updated table name
         .select("id")
         .eq("assessment_id", mockExamId)
         .eq("student_id", user.id)
@@ -213,7 +205,7 @@ const TakeMockExam = () => {
         const attemptId = attempts[subject.id];
         if (attemptId) {
           const { data: attempt, error } = await supabase
-            .from("attempts")
+            .from("mock_exam_assessments")  // Updated table name
             .select("score, total_questions")
             .eq("id", attemptId)
             .single();
@@ -363,7 +355,7 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
           if (!user) return;
 
           const { data: attempt, error } = await supabase
-            .from("attempts")
+            .from("mock_exam_assessments")  // Updated table name
             .insert({
               student_id: user.id,
               assessment_id: mockExamId,
@@ -420,7 +412,7 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
       const passed = correct >= 50;  // Example passing score
 
       const { error: updateErr } = await supabase
-        .from("attempts")
+        .from("mock_exam_assessments")  // Updated table name
         .update({
           score: correct,
           total_questions: totalQuestions,
