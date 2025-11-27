@@ -9,7 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import NotFound from "./pages/NotFound";
 import TakeAssessment from "./components/assessment/TakeAssessment";
-import TakeMock from "./components/assessment/TakeMock";
+import TakeMock from "./components/assessment/TakeMockExam";
 import AssessmentReview from "./components/assessment/AssessmentReview";
 
 
