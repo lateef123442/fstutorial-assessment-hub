@@ -17,6 +17,8 @@ const TakeMockExam = () => {
 
   const [mockExam, setMockExam] = useState(null);
   const [subjects, setSubjects] = useState([]);
+  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+  const [attempts, setAttempts] = useState({});
   const [timeRemaining, setTimeRemaining] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -61,11 +63,11 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch questions for the default subject
+      // Fetch questions (without subject_id filter, since it doesn't exist)
       const { data: questions, error: questionsError } = await supabase
         .from("questions")
         .select("id, question_text, correct_answer, option_a, option_b, option_c, option_d")
-        .eq("subject_id", subjectData.id);
+        .limit(50);  // Limit to avoid loading too many; adjust as needed
 
       console.log("Questions query result - data:", questions, "error:", questionsError);
 
