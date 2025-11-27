@@ -38,12 +38,13 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch mock exam from "mock_exam" table with profiles join
+      // Fetch mock exam with subjects join (using subject_id FK)
       const { data: mock, error: mockError } = await supabase
         .from("mock_exam")
         .select(`
-          *,
-          profiles:created_by (email, full_name)  // Adjust 'created_by' to your actual FK column linking to profiles
+          id, title, total_duration_minutes, passing_score, subject_id, created_by,
+          subject:subject_id (id, name, questions),  // Join to subject table
+          profiles:created_by (email, full_name)
         `)
         .eq("id", mockExamId)
         .single();
@@ -58,7 +59,7 @@ const TakeMockExam = () => {
       const { data: existingAttempts, error: attemptError } = await supabase
         .from("attempts")
         .select("id")
-        .eq("mock_exam_id", mockExamId)
+        .eq("assessment_id", mockExamId)  // Updated to assessment_id
         .eq("student_id", user.id)
         .not("submitted_at", "is", null);
 
@@ -77,8 +78,8 @@ const TakeMockExam = () => {
       // Set mock exam
       setMockExam(mock);
 
-      // Set subjects from JSON field
-      setSubjects(mock.subjects || []);
+      // Set subjects from joined data (array of subject objects)
+      setSubjects(mock.subject ? [mock.subject] : []);  // Assuming one subject per exam; adjust if multiple
 
       // Set duration (total for mock exam)
       setTimeRemaining(mock.total_duration_minutes * 60);
@@ -154,7 +155,7 @@ const TakeMockExam = () => {
       let totalQuestions = 0;
 
       for (const subject of subjects) {
-        const attemptId = attempts[subject.assessmentId];  // Consistent key
+        const attemptId = attempts[subject.id];  // Use subject.id as key (from joined data)
         if (attemptId) {
           const { data: attempt, error } = await supabase
             .from("attempts")
@@ -225,7 +226,7 @@ const TakeMockExam = () => {
           <CardHeader>
             <div className="flex justify-between">
               <div>
-                <CardTitle>{mockExam.title} - {currentSubject.subject}</CardTitle>
+                <CardTitle>{mockExam.title} - {currentSubject?.name}</CardTitle>  {/* Updated to subject.name */}
                 <CardDescription>
                   Subject {currentSubjectIndex + 1} of {subjects.length}
                 </CardDescription>
@@ -252,7 +253,7 @@ const TakeMockExam = () => {
             }
           }}
           onAttemptCreated={(attemptId) => {
-            setAttempts((prev) => ({ ...prev, [currentSubject.assessmentId]: attemptId }));
+            setAttempts((prev) => ({ ...prev, [currentSubject.id]: attemptId }));  // Use subject.id as key
           }}
         />
 
@@ -280,7 +281,7 @@ const TakeMockExam = () => {
   );
 };
 
-// Sub-component for each subject assessment (inlined, following TakeAssessment template)
+// Sub-component for each subject assessment (inlined)
 const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete, onAttemptCreated }) => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -310,7 +311,8 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
             .from("attempts")
             .insert({
               student_id: user.id,
-              mock_exam_id: mockExamId,
+              assessment_id: mockExamId,  // Updated to assessment_id
+              started_at: new Date().toISOString(),  // Added started_at
             })
             .select()
             .single();
@@ -367,7 +369,7 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
         .update({
           score: correct,
           total_questions: totalQuestions,
-          passed,
+          passes: passed,  // Updated to passes
           submitted_at: new Date().toISOString(),
           auto_submitted: autoSubmitted,
         })
@@ -397,7 +399,6 @@ const SubjectAssessment = ({ subjectData, mockExamId, timeRemaining, onComplete,
   }
 
   const q = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
     <>
