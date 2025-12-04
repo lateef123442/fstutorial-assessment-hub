@@ -164,6 +164,204 @@ export type Database = {
           },
         ]
       }
+      mock_exam_attempts: {
+        Row: {
+          created_at: string | null
+          current_subject_index: number | null
+          id: string
+          is_completed: boolean | null
+          mock_exam_id: string
+          started_at: string | null
+          student_id: string
+          submitted_at: string | null
+          total_questions: number | null
+          total_score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_subject_index?: number | null
+          id?: string
+          is_completed?: boolean | null
+          mock_exam_id: string
+          started_at?: string | null
+          student_id: string
+          submitted_at?: string | null
+          total_questions?: number | null
+          total_score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          current_subject_index?: number | null
+          id?: string
+          is_completed?: boolean | null
+          mock_exam_id?: string
+          started_at?: string | null
+          student_id?: string
+          submitted_at?: string | null
+          total_questions?: number | null
+          total_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_exam_attempts_mock_exam_id_fkey"
+            columns: ["mock_exam_id"]
+            isOneToOne: false
+            referencedRelation: "mock_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_exam_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_exam_subject_results: {
+        Row: {
+          assessment_id: string | null
+          attempt_id: string
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          score: number | null
+          started_at: string | null
+          subject_id: string
+          total_questions: number | null
+        }
+        Insert: {
+          assessment_id?: string | null
+          attempt_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          score?: number | null
+          started_at?: string | null
+          subject_id: string
+          total_questions?: number | null
+        }
+        Update: {
+          assessment_id?: string | null
+          attempt_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          score?: number | null
+          started_at?: string | null
+          subject_id?: string
+          total_questions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_exam_subject_results_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_exam_subject_results_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "mock_exam_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_exam_subject_results_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_exam_subjects: {
+        Row: {
+          created_at: string | null
+          id: string
+          mock_exam_id: string
+          order_position: number
+          subject_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mock_exam_id: string
+          order_position?: number
+          subject_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mock_exam_id?: string
+          order_position?: number
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_exam_subjects_mock_exam_id_fkey"
+            columns: ["mock_exam_id"]
+            isOneToOne: false
+            referencedRelation: "mock_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mock_exam_subjects_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mock_exams: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          duration_per_subject_minutes: number
+          id: string
+          is_active: boolean | null
+          scheduled_date: string
+          scheduled_time: string | null
+          title: string
+          total_duration_minutes: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          duration_per_subject_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          scheduled_date: string
+          scheduled_time?: string | null
+          title: string
+          total_duration_minutes?: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          duration_per_subject_minutes?: number
+          id?: string
+          is_active?: boolean | null
+          scheduled_date?: string
+          scheduled_time?: string | null
+          title?: string
+          total_duration_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_exams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
