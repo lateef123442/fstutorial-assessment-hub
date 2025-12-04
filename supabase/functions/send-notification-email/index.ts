@@ -1,7 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@4.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,31 +20,44 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+
     const { to, subject, userName, action, details }: EmailRequest = await req.json();
 
-    const emailResponse = await resend.emails.send({
-      from: "Assessment System <onboarding@resend.dev>",
-      to: [to],
-      subject: subject,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">Hello ${userName}!</h1>
-          <p style="font-size: 16px; color: #555;">
-            ${action}
-          </p>
-          ${details ? `<p style="font-size: 14px; color: #777; margin-top: 20px;">${details}</p>` : ''}
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
-            <p style="font-size: 12px; color: #999;">
-              This is an automated notification from the Assessment System.
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Assessment System <onboarding@resend.dev>",
+        to: [to],
+        subject: subject,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #333;">Hello ${userName}!</h1>
+            <p style="font-size: 16px; color: #555;">
+              ${action}
             </p>
+            ${details ? `<p style="font-size: 14px; color: #777; margin-top: 20px;">${details}</p>` : ''}
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="font-size: 12px; color: #999;">
+                This is an automated notification from the Assessment System.
+              </p>
+            </div>
           </div>
-        </div>
-      `,
+        `,
+      }),
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    const result = await emailResponse.json();
+    console.log("Email sent successfully:", result);
 
-    return new Response(JSON.stringify(emailResponse), {
+    return new Response(JSON.stringify(result), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
