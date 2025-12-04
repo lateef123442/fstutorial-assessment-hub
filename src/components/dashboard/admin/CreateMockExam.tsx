@@ -1,11 +1,9 @@
-
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -36,13 +34,12 @@ interface SubjectData {
 const CreateMockExam = () => {
   const [formData, setFormData] = useState({
     title: "",
-    total_duration_minutes: 120,
-    duration_minutes: 30,  // Added
-    passing_score: 50,
-    subject_id: "",  // Added
-    is_active: true,  // Added
-    scheduled_date: "",  // Added
-    scheduled_time: "",  // Added
+    description: "",
+    scheduled_date: "",
+    scheduled_time: "",
+    duration_per_subject_minutes: 45,
+    total_duration_minutes: 180,
+    is_active: true,
   });
 
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
@@ -51,7 +48,6 @@ const CreateMockExam = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Fetch user and check admin role
   useEffect(() => {
     const getUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
@@ -65,7 +61,7 @@ const CreateMockExam = () => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (roleError || !roleData || roleData.role !== "admin") {
         toast.error("Only admins can create mock exams");
@@ -77,7 +73,6 @@ const CreateMockExam = () => {
     getUser();
   }, []);
 
-  // Fetch available subjects
   useEffect(() => {
     const fetchSubjects = async () => {
       const { data, error } = await supabase.from("subjects").select("id, name");
@@ -90,7 +85,6 @@ const CreateMockExam = () => {
     fetchSubjects();
   }, []);
 
-  // Update subjects state when selections change
   useEffect(() => {
     const selected = availableSubjects.filter(sub => selectedSubjectIds.includes(sub.id));
     setSubjects(selected.map(sub => ({
@@ -102,7 +96,7 @@ const CreateMockExam = () => {
 
   const handleSubjectSelection = (subjectId: string, checked: boolean) => {
     if (checked && selectedSubjectIds.length >= 4) {
-      toast.error("You can select a maximum of 4 subjects");
+      toast.error("Maximum of 4 subjects allowed per mock exam");
       return;
     }
     setSelectedSubjectIds(prev =>
@@ -143,12 +137,16 @@ const CreateMockExam = () => {
       return;
     }
 
-    if (selectedSubjectIds.length === 0 || selectedSubjectIds.length > 4) {
-      toast.error("Please select between 1 and 4 subjects");
+    if (selectedSubjectIds.length !== 4) {
+      toast.error("Please select exactly 4 subjects for the mock exam");
       return;
     }
 
-    // Validate questions
+    if (!formData.scheduled_date) {
+      toast.error("Please select an exam date");
+      return;
+    }
+
     for (const subj of subjects) {
       if (subj.questions.length === 0 || subj.questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) {
         toast.error(`Please fill in all fields for ${subj.subject}`);
@@ -157,19 +155,17 @@ const CreateMockExam = () => {
     }
 
     try {
-      // Create mock exam in "mock_exam" table
+      // Create mock exam
       const { data: mockExam, error: mockError } = await supabase
-        .from("mock_exam")
+        .from("mock_exams")
         .insert({
           title: formData.title,
+          description: formData.description || null,
+          scheduled_date: formData.scheduled_date,
+          scheduled_time: formData.scheduled_time || null,
+          duration_per_subject_minutes: formData.duration_per_subject_minutes,
           total_duration_minutes: formData.total_duration_minutes,
-          duration_minutes: formData.duration_minutes,  // Added
-          passing_score: formData.passing_score,
-          subject_id: formData.subject_id || null,  // Added
-          admin_id: user.id,  // Added, from user_roles
-          is_active: formData.is_active,  // Added
-          scheduled_date: formData.scheduled_date || null,  // Added
-          scheduled_time: formData.scheduled_time || null,  // Added
+          is_active: formData.is_active,
           created_by: user.id,
         })
         .select()
@@ -177,31 +173,43 @@ const CreateMockExam = () => {
 
       if (mockError) throw mockError;
 
-      // For each subject, create assessment
-      for (const subj of subjects) {
+      // For each subject, create the link and assessment
+      for (let i = 0; i < subjects.length; i++) {
+        const subj = subjects[i];
+        
+        // Link subject to mock exam
+        const { error: linkError } = await supabase
+          .from("mock_exam_subjects")
+          .insert({
+            mock_exam_id: mockExam.id,
+            subject_id: subj.subjectId,
+            order_position: i + 1,
+          });
+
+        if (linkError) throw linkError;
+
+        // Create assessment for this subject
         const { data: assessment, error: assessError } = await supabase
           .from("assessments")
           .insert({
             title: `${formData.title} - ${subj.subject}`,
             subject_id: subj.subjectId,
             teacher_id: user.id,
-            duration_minutes: Math.floor(formData.total_duration_minutes / subjects.length),
-            passing_score: 0,
+            duration_minutes: formData.duration_per_subject_minutes,
+            passing_score: 50,
+            is_active: true,
+            scheduled_date: formData.scheduled_date,
+            scheduled_time: formData.scheduled_time || null,
           })
           .select()
           .single();
 
         if (assessError) throw assessError;
 
+        // Insert questions
         const questionsWithId = subj.questions.map(q => ({ ...q, assessment_id: assessment.id }));
         const { error: qError } = await supabase.from("questions").insert(questionsWithId);
         if (qError) throw qError;
-
-        await supabase.from("mock_exam_assessments").insert({
-          mock_exam_id: mockExam.id,
-          assessment_id: assessment.id,
-          subject_name: subj.subject,
-        });
       }
 
       // Notify students
@@ -224,20 +232,19 @@ const CreateMockExam = () => {
       }
 
       toast.success("Mock Exam created successfully!");
-      // Reset
       setFormData({
         title: "",
-        total_duration_minutes: 120,
-        duration_minutes: 30,
-        passing_score: 50,
-        subject_id: "",
-        is_active: true,
+        description: "",
         scheduled_date: "",
         scheduled_time: "",
+        duration_per_subject_minutes: 45,
+        total_duration_minutes: 180,
+        is_active: true,
       });
       setSelectedSubjectIds([]);
       setSubjects([]);
     } catch (error: any) {
+      console.error("Error creating mock exam:", error);
       toast.error(`Error: ${error.message}`);
     }
   };
@@ -251,17 +258,47 @@ const CreateMockExam = () => {
       <Card>
         <CardHeader>
           <CardTitle>Create New Mock Exam</CardTitle>
-          <CardDescription>Select up to 4 subjects and design questions</CardDescription>
+          <CardDescription>Select exactly 4 subjects (like JAMB) and design questions for each</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="title">Mock Exam Title</Label>
+                <Label htmlFor="title">Mock Exam Title *</Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., 2025 JAMB Mock"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduled_date">Exam Date *</Label>
+                <Input
+                  id="scheduled_date"
+                  type="date"
+                  value={formData.scheduled_date}
+                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="scheduled_time">Exam Time</Label>
+                <Input
+                  id="scheduled_time"
+                  type="time"
+                  value={formData.scheduled_time}
+                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="duration_per_subject">Duration per Subject (minutes)</Label>
+                <Input
+                  id="duration_per_subject"
+                  type="number"
+                  value={formData.duration_per_subject_minutes}
+                  onChange={(e) => setFormData({ ...formData, duration_per_subject_minutes: parseInt(e.target.value) })}
                   required
                 />
               </div>
@@ -275,80 +312,43 @@ const CreateMockExam = () => {
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>  {/* Added */}
-                <Input
-                  id="duration"
-                  type="number"
-                  value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="passing">Passing Score (%)</Label>
-                <Input
-                  id="passing"
-                  type="number"
-                  value={formData.passing_score}
-                  onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="subject">Main Subject</Label>  {/* Added */}
-                <Select value={formData.subject_id} onValueChange={(value) => setFormData({ ...formData, subject_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableSubjects.map((subj) => (
-                      <SelectItem key={subj.id} value={subj.id}>
-                        {subj.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="scheduled_date">Scheduled Date</Label>  {/* Added */}
-                <Input
-                  id="scheduled_date"
-                  type="date"
-                  value={formData.scheduled_date}
-                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="scheduled_time">Scheduled Time</Label>  {/* Added */}
-                <Input
-                  id="scheduled_time"
-                  type="time"
-                  value={formData.scheduled_time}
-                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-6">
                 <Checkbox
                   id="is_active"
                   checked={formData.is_active}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked as boolean })}
                 />
-                <Label htmlFor="is_active">Is Active</Label>  {/* Added */}
+                <Label htmlFor="is_active">Active (visible to students)</Label>
               </div>
             </div>
 
             <div>
-              <Label>Select Subjects (Max 4)</Label>
-              <div className="grid md:grid-cols-2 gap-2 mt-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Optional description..."
+              />
+            </div>
+
+            <div>
+              <Label className="text-base font-semibold">
+                Select 4 Subjects ({selectedSubjectIds.length}/4 selected)
+              </Label>
+              {selectedSubjectIds.length < 4 && (
+                <p className="text-sm text-destructive mt-1">You must select exactly 4 subjects</p>
+              )}
+              <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-2 mt-2">
                 {availableSubjects.map((subj) => (
-                  <div key={subj.id} className="flex items-center space-x-2">
+                  <div key={subj.id} className="flex items-center space-x-2 p-2 border rounded">
                     <Checkbox
                       id={subj.id}
                       checked={selectedSubjectIds.includes(subj.id)}
                       onCheckedChange={(checked) => handleSubjectSelection(subj.id, checked as boolean)}
+                      disabled={!selectedSubjectIds.includes(subj.id) && selectedSubjectIds.length >= 4}
                     />
-                    <Label htmlFor={subj.id}>{subj.name}</Label>
+                    <Label htmlFor={subj.id} className="cursor-pointer">{subj.name}</Label>
                   </div>
                 ))}
               </div>
@@ -356,10 +356,10 @@ const CreateMockExam = () => {
 
             {subjects.length > 0 && (
               <Tabs defaultValue={subjects[0]?.subjectId} className="w-full">
-                <TabsList className="w-full justify-start">
-                  {subjects.map((subj) => (
-                    <TabsTrigger key={subj.subjectId} value={subj.subjectId} className="flex-1">
-                      {subj.subject}
+                <TabsList className="w-full justify-start flex-wrap h-auto">
+                  {subjects.map((subj, index) => (
+                    <TabsTrigger key={subj.subjectId} value={subj.subjectId} className="flex-shrink-0">
+                      {index + 1}. {subj.subject}
                     </TabsTrigger>
                   ))}
                 </TabsList>
@@ -367,7 +367,7 @@ const CreateMockExam = () => {
                   <TabsContent key={subj.subjectId} value={subj.subjectId} className="space-y-4 mt-4">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">{subj.subject} Questions</h3>
+                        <h3 className="text-lg font-semibold">{subj.subject} Questions ({subj.questions.length})</h3>
                         <Button type="button" onClick={() => addQuestion(subjIndex)} variant="outline">
                           <Plus className="w-4 h-4 mr-2" /> Add Question
                         </Button>
@@ -396,15 +396,16 @@ const CreateMockExam = () => {
                             </div>
                             <div>
                               <Label>Correct Answer</Label>
-                              <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(subjIndex, qIndex, "correct_answer", value)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="A">A</SelectItem>
-                                  <SelectItem value="B">B</SelectItem>
-                                  <SelectItem value="C">C</SelectItem>
-                                  <SelectItem value="D">D</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <select
+                                className="w-full p-2 border rounded"
+                                value={question.correct_answer}
+                                onChange={(e) => updateQuestion(subjIndex, qIndex, "correct_answer", e.target.value)}
+                              >
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                              </select>
                             </div>
                           </CardContent>
                         </Card>
@@ -415,7 +416,13 @@ const CreateMockExam = () => {
               </Tabs>
             )}
 
-            <Button type="submit" className="w-full">Create Mock Exam</Button>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={selectedSubjectIds.length !== 4}
+            >
+              Create Mock Exam ({selectedSubjectIds.length}/4 subjects)
+            </Button>
           </form>
         </CardContent>
       </Card>

@@ -11,26 +11,38 @@ import { toast } from "sonner";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 
+interface Question {
+  id: string;
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: string;
+}
+
+interface Assessment {
+  id: string;
+  title: string;
+  duration_minutes: number;
+  passing_score: number;
+}
+
 const TakeAssessment = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
 
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [assessment, setAssessment] = useState(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // ============================================
-  // LOAD ASSESSMENT + ATTEMPT
-  // ============================================
-
   const loadAssessment = async () => {
     try {
-      // Get logged-in student
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error("You must be logged in to take this assessment");
@@ -38,7 +50,6 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Fetch attempt using student_id
       const { data: attempt, error: attemptError } = await supabase
         .from("attempts")
         .select("*, assessments(*)")
@@ -52,14 +63,12 @@ const TakeAssessment = () => {
         return;
       }
 
-      // If attempt already submitted
       if (attempt.submitted_at) {
         toast.error("You have already completed this assessment");
         navigate("/dashboard");
         return;
       }
 
-      // Check if student already submitted any attempt for this assessment
       const { data: previousAttempts, error: prevError } = await supabase
         .from("attempts")
         .select("id")
@@ -73,44 +82,26 @@ const TakeAssessment = () => {
         return;
       }
 
-      if (previousAttempts.length > 0) {
+      if (previousAttempts && previousAttempts.length > 0) {
         toast.error("You have already completed this assessment");
         navigate("/dashboard");
         return;
       }
 
-      // Check if this assessment is part of a mock exam (exclude it)
-      const { data: mockLink } = await supabase
-        .from("mock_exam_assessments")
-        .select("mock_exam_id")
-        .eq("assessment_id", attempt.assessment_id)
-        .single();
+      setAssessment(attempt.assessments as Assessment);
+      setTimeRemaining((attempt.assessments as Assessment).duration_minutes * 60);
 
-      if (mockLink) {
-        toast.error("This assessment is part of a mock exam. Please take it from the mock exam page.");
-        navigate("/dashboard");  // Or redirect to `/take-mock-exam/${mockLink.mock_exam_id}` if you want to redirect to the mock exam
-        return;
-      }
-
-      // Set assessment
-      setAssessment(attempt.assessments);
-
-      // Set duration
-      setTimeRemaining(attempt.assessments.duration_minutes * 60);
-
-      // Load questions
       const { data: questionsData } = await supabase
         .from("questions")
         .select("*")
         .eq("assessment_id", attempt.assessment_id)
         .order("created_at");
 
-      setQuestions(questionsData);
+      setQuestions(questionsData || []);
 
-      // Update total questions in attempt
       await supabase
         .from("attempts")
-        .update({ total_questions: questionsData.length })
+        .update({ total_questions: questionsData?.length || 0 })
         .eq("id", attemptId);
 
       setLoading(false);
@@ -131,10 +122,6 @@ const TakeAssessment = () => {
     loadAssessment();
   }, [attemptId]);
 
-  // ============================================
-  // TIMER
-  // ============================================
-
   useEffect(() => {
     if (!assessment) return;
 
@@ -149,10 +136,6 @@ const TakeAssessment = () => {
 
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
-
-  // ============================================
-  // AUTO-SUBMIT ON LEAVING TAB
-  // ============================================
 
   useEffect(() => {
     const handleLeave = () => handleSubmit(true);
@@ -170,17 +153,9 @@ const TakeAssessment = () => {
     };
   }, []);
 
-  // ============================================
-  // SAVE ANSWER
-  // ============================================
-
-  const handleAnswerChange = (questionId, value) => {
+  const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
-
-  // ============================================
-  // SUBMIT
-  // ============================================
 
   const handleSubmit = async (autoSubmitted = false) => {
     if (submitting) return;
@@ -219,16 +194,8 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Send result email
       const percentage = Math.round((correct / questions.length) * 100);
-      notifyUserAction(
-        assessment?.profiles?.email,
-        assessment?.profiles?.full_name,
-        "results_available",
-        `You scored ${correct}/${questions.length} (${percentage}%).`
-      );
-
-      toast.success("Assessment Submitted!");
+      toast.success(`Assessment Submitted! Score: ${correct}/${questions.length} (${percentage}%)`);
       navigate("/dashboard");
 
     } catch (err) {
@@ -239,20 +206,12 @@ const TakeAssessment = () => {
     }
   };
 
-  // ============================================
-  // HELPER FUNCTION FOR TIME FORMATTING
-  // ============================================
-
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
-
-  // ============================================
-  // UI
-  // ============================================
 
   if (loading)
     return (
@@ -264,6 +223,14 @@ const TakeAssessment = () => {
   const q = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
+  if (!q) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        No questions available.
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
@@ -271,7 +238,7 @@ const TakeAssessment = () => {
           <CardHeader>
             <div className="flex justify-between">
               <div>
-                <CardTitle>{assessment.title}</CardTitle>
+                <CardTitle>{assessment?.title}</CardTitle>
                 <CardDescription>
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </CardDescription>
@@ -279,7 +246,7 @@ const TakeAssessment = () => {
 
               <div className="flex items-center gap-2 font-bold">
                 <Clock className="w-5 h-5" />
-                {formatTime(timeRemaining)}  {/* Updated to show HH:MM:SS */}
+                {formatTime(timeRemaining)}
               </div>
             </div>
             <Progress value={progress} className="mt-3" />
@@ -298,7 +265,7 @@ const TakeAssessment = () => {
               {["A", "B", "C", "D"].map((opt) => (
                 <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
                   <RadioGroupItem value={opt} id={opt} />
-                  <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}`]}</Label>
+                  <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}` as keyof Question]}</Label>
                 </div>
               ))}
             </RadioGroup>
