@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { createClient } from '@supabase/supabase-js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,74 +51,48 @@ const ManageStudents = () => {
     setLoading(true);
 
     try {
-      // Check if current user is admin
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Please log in as an admin.");
-        return;
-      }
-
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-
-      if (roleError || roleData?.role !== "admin") {
-        toast.error("Only admins can add students.");
-        return;
-      }
-
       // Generate a password for the student
       const generatedPassword = generatePassword();
 
-      // Create admin client with service role
-      const supabaseAdmin = createClient(
-        import.meta.env.VITE_SUPABASE_URL,
-        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-      );
-
-      // Create user with password
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-        email: formData.email,
-        password: generatedPassword,
-        email_confirm: true,
-        user_metadata: { full_name: formData.fullName },
+      // Call secure edge function to create student
+      const { data, error: createError } = await supabase.functions.invoke("create-student", {
+        body: {
+          email: formData.email,
+          fullName: formData.fullName,
+          password: generatedPassword,
+        },
       });
 
-      if (userError) throw userError;
-
-      if (userData.user) {
-        // Insert role using admin client
-        const { error: roleInsertError } = await supabaseAdmin
-          .from("user_roles")
-          .insert({ user_id: userData.user.id, role: "student" });
-
-        if (roleInsertError) throw roleInsertError;
-
-        // Send credentials email
-        const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
-          body: {
-            email: formData.email,
-            password: generatedPassword,
-            fullName: formData.fullName,
-          },
-        });
-
-        if (emailError) {
-          console.error("Email error:", emailError);
-          toast.warning("Student created but email failed to send. Password: " + generatedPassword, {
-            duration: 10000,
-          });
-        } else {
-          toast.success("Student added! Login credentials sent to their email.", {
-            duration: 5000,
-          });
-        }
-
-        setFormData({ email: "", fullName: "" });
-        fetchStudents();
+      if (createError) {
+        throw new Error(createError.message);
       }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Send credentials email
+      const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
+        body: {
+          email: formData.email,
+          password: generatedPassword,
+          fullName: formData.fullName,
+        },
+      });
+
+      if (emailError) {
+        console.error("Email error:", emailError);
+        toast.warning("Student created but email failed to send. Please provide credentials manually.", {
+          duration: 10000,
+        });
+      } else {
+        toast.success("Student added! Login credentials sent to their email.", {
+          duration: 5000,
+        });
+      }
+
+      setFormData({ email: "", fullName: "" });
+      fetchStudents();
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
     } finally {
