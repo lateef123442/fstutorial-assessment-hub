@@ -9,9 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import ConfirmEmail from "./pages/ConfirmEmail";
 import NotFound from "./pages/NotFound";
 import TakeAssessment from "./components/assessment/TakeAssessment";
-import TakeMock from "./components/assessment/TakeMockExam";
+import TakeMockExam from "./components/assessment/TakeMockExam";
 import AssessmentReview from "./components/assessment/AssessmentReview";
-
 
 const queryClient = new QueryClient();
 
@@ -27,8 +26,8 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/take-assessment/:attemptId" element={<TakeAssessment />} />
           <Route path="/assessment-review/:attemptId" element={<AssessmentReview />} />
-           <Route path="/take-mock-exam/:mockExamId" element={<TakeMock />} />
-          <Route path="*" element={<ConfirmEmail />} />
+          <Route path="/take-mock-exam/:mockExamId" element={<TakeMockExam />} />
+          <Route path="/confirm-email" element={<ConfirmEmail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
