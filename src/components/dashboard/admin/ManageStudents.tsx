@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Trash2, Edit } from "lucide-react";
+import { studentSchema } from "@/lib/validationSchemas";
 
 // Generate a random password
 const generatePassword = () => {
@@ -24,6 +25,7 @@ const ManageStudents = () => {
     email: "",
     fullName: "",
   });
+  const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string }>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ full_name: "", email: "" });
 
@@ -46,8 +48,28 @@ const ManageStudents = () => {
     setLoading(false);
   };
 
+  const validateForm = () => {
+    const result = studentSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: { email?: string; fullName?: string } = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field as keyof typeof errors] = err.message;
+      });
+      setFormErrors(errors);
+      return false;
+    }
+    setFormErrors({});
+    return true;
+  };
+
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -57,8 +79,8 @@ const ManageStudents = () => {
       // Call secure edge function to create student
       const { data, error: createError } = await supabase.functions.invoke("create-student", {
         body: {
-          email: formData.email,
-          fullName: formData.fullName,
+          email: formData.email.trim(),
+          fullName: formData.fullName.trim(),
           password: generatedPassword,
         },
       });
@@ -74,9 +96,9 @@ const ManageStudents = () => {
       // Send credentials email
       const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
         body: {
-          email: formData.email,
+          email: formData.email.trim(),
           password: generatedPassword,
-          fullName: formData.fullName,
+          fullName: formData.fullName.trim(),
         },
       });
 
@@ -125,9 +147,20 @@ const ManageStudents = () => {
   };
 
   const handleSaveEdit = async (userId: string) => {
+    // Validate edit data
+    const editValidation = studentSchema.safeParse({
+      email: editData.email,
+      fullName: editData.full_name,
+    });
+
+    if (!editValidation.success) {
+      toast.error(editValidation.error.errors[0]?.message || "Invalid data");
+      return;
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: editData.full_name })
+      .update({ full_name: editData.full_name.trim() })
       .eq("id", userId);
 
     if (error) {
@@ -154,9 +187,16 @@ const ManageStudents = () => {
                 <Input
                   id="fullName"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, fullName: e.target.value });
+                    if (formErrors.fullName) setFormErrors({ ...formErrors, fullName: undefined });
+                  }}
+                  maxLength={100}
                   required
                 />
+                {formErrors.fullName && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.fullName}</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="email">Email</Label>
@@ -164,9 +204,16 @@ const ManageStudents = () => {
                   id="email"
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (formErrors.email) setFormErrors({ ...formErrors, email: undefined });
+                  }}
+                  maxLength={255}
                   required
                 />
+                {formErrors.email && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.email}</p>
+                )}
               </div>
             </div>
             <Button type="submit" disabled={loading}>
@@ -192,6 +239,7 @@ const ManageStudents = () => {
                       value={editData.full_name}
                       onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
                       placeholder="Full Name"
+                      maxLength={100}
                     />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleSaveEdit(student.user_id)}>Save</Button>
