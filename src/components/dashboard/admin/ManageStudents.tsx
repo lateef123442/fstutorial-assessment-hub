@@ -8,6 +8,16 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Plus, Trash2, Edit } from "lucide-react";
 
+// Generate a random password
+const generatePassword = () => {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +66,12 @@ const ManageStudents = () => {
         .single();
 
       if (roleError || roleData?.role !== "admin") {
-        toast.error("Only admins can invite students.");
+        toast.error("Only admins can add students.");
         return;
       }
+
+      // Generate a password for the student
+      const generatedPassword = generatePassword();
 
       // Create admin client with service role
       const supabaseAdmin = createClient(
@@ -66,25 +79,43 @@ const ManageStudents = () => {
         import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
       );
 
-      // Invite user
-      const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(formData.email, {
-        data: { full_name: formData.fullName },
-        redirectTo: `${window.location.origin}/confirm-email`,
+      // Create user with password
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email: formData.email,
+        password: generatedPassword,
+        email_confirm: true,
+        user_metadata: { full_name: formData.fullName },
       });
 
-      if (inviteError) throw inviteError;
+      if (userError) throw userError;
 
-      if (inviteData.user) {
+      if (userData.user) {
         // Insert role using admin client
-        const { error: roleError } = await supabaseAdmin
+        const { error: roleInsertError } = await supabaseAdmin
           .from("user_roles")
-          .insert({ user_id: inviteData.user.id, role: "student" });
+          .insert({ user_id: userData.user.id, role: "student" });
 
-        if (roleError) throw roleError;
+        if (roleInsertError) throw roleInsertError;
 
-        toast.success("Student invited! They will receive an email to set up their password.", {
-          duration: 5000,
+        // Send credentials email
+        const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
+          body: {
+            email: formData.email,
+            password: generatedPassword,
+            fullName: formData.fullName,
+          },
         });
+
+        if (emailError) {
+          console.error("Email error:", emailError);
+          toast.warning("Student created but email failed to send. Password: " + generatedPassword, {
+            duration: 10000,
+          });
+        } else {
+          toast.success("Student added! Login credentials sent to their email.", {
+            duration: 5000,
+          });
+        }
 
         setFormData({ email: "", fullName: "" });
         fetchStudents();
@@ -140,7 +171,7 @@ const ManageStudents = () => {
       <Card>
         <CardHeader>
           <CardTitle>Add New Student</CardTitle>
-          <CardDescription>Invite a new student (they will receive an email to set up their password)</CardDescription>
+          <CardDescription>Add a new student (login credentials will be sent to their email)</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddStudent} className="space-y-4">
@@ -167,7 +198,7 @@ const ManageStudents = () => {
             </div>
             <Button type="submit" disabled={loading}>
               <Plus className="w-4 h-4 mr-2" />
-              Invite Student
+              Add Student
             </Button>
           </form>
         </CardContent>
