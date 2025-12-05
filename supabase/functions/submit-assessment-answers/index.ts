@@ -1,0 +1,183 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+interface AnswerSubmission {
+  question_id: string;
+  selected_answer: string;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "No authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Verify user is authenticated
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { attempt_id, answers, auto_submitted = false } = await req.json();
+
+    if (!attempt_id || !answers || !Array.isArray(answers)) {
+      return new Response(
+        JSON.stringify({ error: "attempt_id and answers array are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // Verify the attempt belongs to the user
+    const { data: attempt, error: attemptError } = await supabaseAdmin
+      .from("attempts")
+      .select("id, student_id, assessment_id, submitted_at")
+      .eq("id", attempt_id)
+      .single();
+
+    if (attemptError || !attempt) {
+      return new Response(
+        JSON.stringify({ error: "Attempt not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (attempt.student_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: "You can only submit your own attempts" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (attempt.submitted_at) {
+      return new Response(
+        JSON.stringify({ error: "This attempt has already been submitted" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get questions with correct answers (server-side only)
+    const questionIds = (answers as AnswerSubmission[]).map(a => a.question_id);
+    const { data: questions, error: questionsError } = await supabaseAdmin
+      .from("questions")
+      .select("id, correct_answer")
+      .in("id", questionIds);
+
+    if (questionsError) {
+      console.error("Error fetching questions:", questionsError);
+      return new Response(
+        JSON.stringify({ error: "Failed to verify answers" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Create a map for quick lookup
+    const correctAnswerMap = new Map(
+      questions?.map(q => [q.id, q.correct_answer]) || []
+    );
+
+    // Calculate score and prepare answer records
+    let score = 0;
+    const answerRecords = (answers as AnswerSubmission[]).map(answer => {
+      const isCorrect = answer.selected_answer === correctAnswerMap.get(answer.question_id);
+      if (isCorrect) score++;
+      return {
+        attempt_id,
+        question_id: answer.question_id,
+        selected_answer: answer.selected_answer,
+        is_correct: isCorrect,
+      };
+    });
+
+    // Get passing score
+    const { data: assessment } = await supabaseAdmin
+      .from("assessments")
+      .select("passing_score")
+      .eq("id", attempt.assessment_id)
+      .single();
+
+    const totalQuestions = answers.length;
+    const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+    const passed = percentage >= (assessment?.passing_score || 50);
+
+    // Save answers
+    const { error: answersError } = await supabaseAdmin
+      .from("answers")
+      .insert(answerRecords);
+
+    if (answersError) {
+      console.error("Error saving answers:", answersError);
+      return new Response(
+        JSON.stringify({ error: "Failed to save answers" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Update attempt with results
+    const { error: updateError } = await supabaseAdmin
+      .from("attempts")
+      .update({
+        score,
+        total_questions: totalQuestions,
+        passed,
+        submitted_at: new Date().toISOString(),
+        auto_submitted,
+      })
+      .eq("id", attempt_id);
+
+    if (updateError) {
+      console.error("Error updating attempt:", updateError);
+      return new Response(
+        JSON.stringify({ error: "Failed to update attempt" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Assessment submitted: attempt=${attempt_id}, score=${score}/${totalQuestions}, passed=${passed}, user=${user.id}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        score,
+        total_questions: totalQuestions,
+        passed,
+        percentage: Math.round(percentage),
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (err) {
+    console.error("Error in submit-assessment-answers:", err);
+    return new Response(
+      JSON.stringify({ error: "Internal server error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
