@@ -1,231 +1,297 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { notifyUserAction } from "@/lib/emailNotifications";
+import { Plus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { subjectSchema } from "@/lib/validationSchemas";
 
-const ManageTeachers = () => {
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    email: "",
-    fullName: "",
-    password: "",
-  }); 
+const ManageSubjects = () => {
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+  });
+  const [formErrors, setFormErrors] = useState<{ name?: string; description?: string }>({});
+  const [assignData, setAssignData] = useState({
+    teacherId: "",
+    subjectId: "",
+  });
 
-  useEffect(() => {
-    fetchTeachers();
-    fetchSubjects();
-  }, []); 
+  useEffect(() => {
+    fetchSubjects();
+    fetchTeachers();
+  }, []);
 
-  const fetchTeachers = async () => {
-    try {
-      // First get all teacher user_ids
-      const { data: teacherRoles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "teacher"); 
+  /** Fetch all subjects */
+  const fetchSubjects = async () => {
+    const { data, error } = await supabase.from("subjects").select("*");
+    if (error) {
+      console.error("Error fetching subjects:", error);
+      toast.error("Failed to load subjects");
+    } else {
+      setSubjects(data || []);
+    }
+    setLoading(false);
+  };
 
-      if (rolesError) throw rolesError; 
-
-      if (!teacherRoles || teacherRoles.length === 0) {
-        setTeachers([]);
-        setLoading(false);
-        return;
-      } 
-
-      // Then get profiles for those user_ids
-      const teacherIds = teacherRoles.map(t => t.user_id);
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email")
-        .in("id", teacherIds); 
-
-      if (profilesError) throw profilesError; 
-
-      // Get teacher subjects
-      const { data: teacherSubjects, error: subjectsError } = await supabase
-        .from("teacher_subjects")
-        .select("teacher_id, subject_id, subjects(id, name)")
-        .in("teacher_id", teacherIds); 
-
-      if (subjectsError) throw subjectsError; 
-
-      // Combine the data
-      const combinedData = profiles?.map(profile => ({
-        user_id: profile.id,
-        profiles: {
-          full_name: profile.full_name,
-          email: profile.email
-        },
-        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || []
-      })) || [];
-
-      setTeachers(combinedData);
-    } catch (error) {
-      console.error("Error fetching teachers:", error);
-      toast.error("Failed to load teachers");
-    }
-    setLoading(false);
-  }; 
-
-  const fetchSubjects = async () => {
-    const { data } = await supabase.from("subjects").select("*");
-    if (data) setSubjects(data);
-  }; 
-
-  const handleAddTeacher = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true); 
-
+  /** Fetch teachers */
+  const fetchTeachers = async () => {
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: { full_name: formData.fullName },
-        },
-      }); 
+      const { data: teacherRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "teacher");
 
-      if (authError) throw authError; 
+      if (rolesError) throw rolesError;
 
-      if (authData.user) {
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: authData.user.id, role: "teacher" }); 
-
-        if (roleError) throw roleError; 
-
-        toast.success("Teacher added successfully!");
-        
-        // Send welcome email
-        notifyUserAction(
-          formData.email,
-          formData.fullName,
-          "signup",
-          "Your teacher account has been created. You can now log in and start creating assessments."
-        );
-        
-        setFormData({ email: "", fullName: "", password: "" });
-        fetchTeachers();
+      if (!teacherRoles || teacherRoles.length === 0) {
+        setTeachers([]);
+        return;
       }
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
+
+      const teacherIds = teacherRoles.map((t) => t.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", teacherIds);
+
+      if (profilesError) throw profilesError;
+
+      const combinedData =
+        profiles?.map((profile) => ({
+          user_id: profile.id,
+          profiles: {
+            full_name: profile.full_name,
+            email: profile.email,
+          },
+        })) || [];
+
+      setTeachers(combinedData);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+      toast.error("Failed to load teachers");
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add New Teacher</CardTitle>
-          <CardDescription>Create a new teacher account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAddTeacher} className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input
-                  id="fullName"
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={loading}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Teacher
-            </Button>
-          </form>
-        </CardContent>
-      </Card> 
+  const validateForm = () => {
+    const result = subjectSchema.safeParse(formData);
+    if (!result.success) {
+      const errors: { name?: string; description?: string } = {};
+      result.error.errors.forEach((err) => {
+        const field = err.path[0] as string;
+        errors[field as keyof typeof errors] = err.message;
+      });
+      setFormErrors(errors);
+      return false;
+    }
+    setFormErrors({});
+    return true;
+  };
 
+  /** Add new subject */
+  const handleAddSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    const { error } = await supabase.from("subjects").insert({
+      name: formData.name.trim(),
+      description: formData.description.trim() || null,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Subject added successfully!");
+      setFormData({ name: "", description: "" });
+      fetchSubjects();
+    }
+  };
+
+  /** Assign teacher to subject */
+  const handleAssignTeacher = async () => {
+    if (!assignData.teacherId || !assignData.subjectId) {
+      toast.error("Please select both teacher and subject");
+      return;
+    }
+
+    const { error } = await supabase.from("teacher_subjects").insert({
+      teacher_id: assignData.teacherId,
+      subject_id: assignData.subjectId,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Teacher assigned successfully!");
+      setAssignData({ teacherId: "", subjectId: "" });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Add Subject */}
       <Card>
         <CardHeader>
-          <CardTitle>All Teachers</CardTitle>
-          <CardDescription>Manage existing teachers and their subjects</CardDescription>
+          <CardTitle>Add New Subject</CardTitle>
+          <CardDescription>Create a new subject for assessments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAddSubject} className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="name">Subject Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                  }}
+                  maxLength={100}
+                  required
+                />
+                {formErrors.name && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.name}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    if (formErrors.description) setFormErrors({ ...formErrors, description: undefined });
+                  }}
+                  maxLength={500}
+                />
+                {formErrors.description && (
+                  <p className="text-sm text-destructive mt-1">{formErrors.description}</p>
+                )}
+              </div>
+            </div>
+            <Button type="submit">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Subject
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Assign Teacher */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Assign Teacher to Subject</CardTitle>
+          <CardDescription>Allocate subjects to teachers</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {teachers.map((teacher) => (
-              <div key={teacher.user_id} className="p-4 border rounded-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="font-semibold">{teacher.profiles?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{teacher.profiles?.email}</p>
-                    {teacher.teacher_subjects && teacher.teacher_subjects.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Assigned Subjects:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {teacher.teacher_subjects.map((ts: any) => (
-                            <span key={ts.subject_id} className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs">
-                              {ts.subjects?.name || 'Unknown'}
-                            </span>
-                          ))}
-                        </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="select-teacher">Select Teacher</Label>
+                <Select
+                  value={assignData.teacherId}
+                  onValueChange={(value) =>
+                    setAssignData({ ...assignData, teacherId: value })
+                  }
+                >
+                  <SelectTrigger id="select-teacher">
+                    <SelectValue placeholder="Choose teacher" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teachers.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No teachers available
                       </div>
+                    ) : (
+                      teachers.map((teacher) => (
+                        <SelectItem
+                          key={teacher.user_id}
+                          value={teacher.user_id}
+                        >
+                          {teacher.profiles?.full_name ||
+                            teacher.profiles?.email ||
+                            "Unknown"}
+                        </SelectItem>
+                      ))
                     )}
-                  </div>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={async () => {
-                      if (window.confirm(`Delete teacher ${teacher.profiles?.full_name}?`)) {
-                        const { error } = await supabase
-                          .from("user_roles")
-                          .delete()
-                          .eq("user_id", teacher.user_id);
-                        
-                        if (error) {
-                          toast.error("Failed to delete teacher");
-                        } else {
-                          toast.success("Teacher deleted successfully");
-                          fetchTeachers();
-                        }
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="select-subject">Select Subject</Label>
+                <Select
+                  value={assignData.subjectId}
+                  onValueChange={(value) =>
+                    setAssignData({ ...assignData, subjectId: value })
+                  }
+                >
+                  <SelectTrigger id="select-subject">
+                    <SelectValue placeholder="Choose subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                        No subjects available
+                      </div>
+                    ) : (
+                      subjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button onClick={handleAssignTeacher}>Assign Teacher</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* All Subjects */}
+      <Card>
+        <CardHeader>
+          <CardTitle>All Subjects</CardTitle>
+          <CardDescription>Total: {subjects.length} subjects</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {subjects.map((subject) => (
+              <div key={subject.id} className="p-4 border rounded-lg">
+                <p className="font-semibold">{subject.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {subject.description}
+                </p>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}; 
+    </div>
+  );
+};
 
-export default ManageTeachers;
+export default ManageSubjects;
