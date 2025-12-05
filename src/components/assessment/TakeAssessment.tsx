@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
-import { notifyUserAction } from "@/lib/emailNotifications";
 
 interface Question {
   id: string;
@@ -18,7 +17,7 @@ interface Question {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_answer: string;
+  assessment_id: string;
 }
 
 interface Assessment {
@@ -37,9 +36,10 @@ const TakeAssessment = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [violations, setViolations] = useState(0);
 
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const loadAssessment = async () => {
     try {
@@ -91,17 +91,24 @@ const TakeAssessment = () => {
       setAssessment(attempt.assessments as Assessment);
       setTimeRemaining((attempt.assessments as Assessment).duration_minutes * 60);
 
-      const { data: questionsData } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("assessment_id", attempt.assessment_id)
-        .order("created_at");
+      // Fetch questions securely via edge function (without correct_answer)
+      const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
+        "get-assessment-questions",
+        { body: { assessment_id: attempt.assessment_id } }
+      );
 
-      setQuestions(questionsData || []);
+      if (questionsError || !questionsResponse?.questions) {
+        console.error("Error fetching questions:", questionsError);
+        toast.error("Failed to load questions");
+        navigate("/dashboard");
+        return;
+      }
+
+      setQuestions(questionsResponse.questions);
 
       await supabase
         .from("attempts")
-        .update({ total_questions: questionsData?.length || 0 })
+        .update({ total_questions: questionsResponse.questions.length })
         .eq("id", attemptId);
 
       setLoading(false);
@@ -137,72 +144,87 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
+  // Handle tab visibility change with warnings
   useEffect(() => {
-    const handleLeave = () => handleSubmit(true);
-
-    const onVisibility = () => {
-      if (document.hidden) handleLeave();
+    const handleVisibilityChange = () => {
+      if (document.hidden && !isSubmittingRef.current && assessment) {
+        setViolations((v) => {
+          const newViolations = v + 1;
+          if (newViolations >= 3) {
+            toast.error("Too many violations! Submitting your assessment.");
+            handleSubmit(true);
+          } else {
+            toast.warning(
+              `Warning: Leaving the assessment tab. Violation ${newViolations}/3`
+            );
+          }
+          return newViolations;
+        });
+      }
     };
 
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", handleLeave);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", handleLeave);
-    };
-  }, []);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [assessment]);
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
   const handleSubmit = async (autoSubmitted = false) => {
-    if (submitting) return;
-    setSubmitting(true);
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     try {
-      let correct = 0;
+      // Prepare answers for submission
+      const answersToSubmit = questions.map((q) => ({
+        question_id: q.id,
+        selected_answer: answers[q.id] || "",
+      }));
 
-      for (const q of questions) {
-        const selected = answers[q.id];
-        const isCorrect = selected === q.correct_answer;
-        if (isCorrect) correct++;
+      // Submit via edge function for server-side scoring
+      const { data: result, error: submitError } = await supabase.functions.invoke(
+        "submit-assessment-answers",
+        {
+          body: {
+            attempt_id: attemptId,
+            answers: answersToSubmit,
+            auto_submitted: autoSubmitted,
+          },
+        }
+      );
 
-        await supabase.from("answers").insert({
-          attempt_id: attemptId,
-          question_id: q.id,
-          selected_answer: selected || null,
-          is_correct: isCorrect,
-        });
-      }
-
-      const passed = correct >= (assessment?.passing_score || 0);
-
-      const { error: updateErr } = await supabase
-        .from("attempts")
-        .update({
-          score: correct,
-          passed,
-          submitted_at: new Date().toISOString(),
-          auto_submitted: autoSubmitted,
-        })
-        .eq("id", attemptId);
-
-      if (updateErr) {
-        toast.error("Submission blocked by RLS policy");
+      if (submitError || !result?.success) {
+        console.error("Submit error:", submitError);
+        toast.error("Failed to submit assessment");
+        isSubmittingRef.current = false;
         return;
       }
 
-      const percentage = Math.round((correct / questions.length) * 100);
-      toast.success(`Assessment Submitted! Score: ${correct}/${questions.length} (${percentage}%)`);
+      // Update violations count if any
+      if (violations > 0) {
+        await supabase
+          .from("attempts")
+          .update({ violations })
+          .eq("id", attemptId);
+      }
+
+      if (autoSubmitted) {
+        toast.info(
+          `Assessment auto-submitted. Score: ${result.score}/${result.total_questions}`
+        );
+      } else {
+        toast.success(
+          `Assessment submitted! Score: ${result.score}/${result.total_questions} (${result.percentage}%)`
+        );
+      }
+
       navigate("/dashboard");
 
     } catch (err) {
       console.error(err);
       toast.error("Failed to submit assessment");
-    } finally {
-      setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -216,7 +238,10 @@ const TakeAssessment = () => {
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading assessment...</p>
+        </div>
       </div>
     );
 
@@ -244,7 +269,7 @@ const TakeAssessment = () => {
                 </CardDescription>
               </div>
 
-              <div className="flex items-center gap-2 font-bold">
+              <div className={`flex items-center gap-2 font-bold ${timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}`}>
                 <Clock className="w-5 h-5" />
                 {formatTime(timeRemaining)}
               </div>
@@ -263,9 +288,17 @@ const TakeAssessment = () => {
               onValueChange={(v) => handleAnswerChange(q.id, v)}
             >
               {["A", "B", "C", "D"].map((opt) => (
-                <div key={opt} className="border p-3 rounded-lg flex items-center gap-3">
+                <div 
+                  key={opt} 
+                  className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${
+                    answers[q.id] === opt ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                  }`}
+                >
                   <RadioGroupItem value={opt} id={opt} />
-                  <Label htmlFor={opt}>{q[`option_${opt.toLowerCase()}` as keyof Question]}</Label>
+                  <Label htmlFor={opt} className="flex-1 cursor-pointer">
+                    <span className="font-medium mr-2">{opt}.</span>
+                    {q[`option_${opt.toLowerCase()}` as keyof Question]}
+                  </Label>
                 </div>
               ))}
             </RadioGroup>
@@ -286,7 +319,7 @@ const TakeAssessment = () => {
               Next <ChevronRight />
             </Button>
           ) : (
-            <Button onClick={() => handleSubmit(false)} disabled={submitting}>
+            <Button onClick={() => handleSubmit(false)} disabled={isSubmittingRef.current}>
               Submit Assessment
             </Button>
           )}

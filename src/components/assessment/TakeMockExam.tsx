@@ -17,7 +17,6 @@ interface Question {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_answer: string;
   assessment_id: string;
 }
 
@@ -137,19 +136,21 @@ const TakeMockExam = () => {
           .maybeSingle();
 
         if (assessment) {
-          // Fetch questions for this assessment
-          const { data: questions } = await supabase
-            .from("questions")
-            .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id")
-            .eq("assessment_id", assessment.id);
+          // Fetch questions securely via edge function (without correct_answer)
+          const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
+            "get-assessment-questions",
+            { body: { assessment_id: assessment.id } }
+          );
 
-          subjectsWithQuestions.push({
-            id: subject.id,
-            name: subject.name,
-            order_position: ms.order_position,
-            assessment_id: assessment.id,
-            questions: questions || [],
-          });
+          if (!questionsError && questionsResponse?.questions) {
+            subjectsWithQuestions.push({
+              id: subject.id,
+              name: subject.name,
+              order_position: ms.order_position,
+              assessment_id: assessment.id,
+              questions: questionsResponse.questions,
+            });
+          }
         }
       }
 
@@ -232,51 +233,56 @@ const TakeMockExam = () => {
     setSubmitting(true);
 
     const currentSubject = subjects[currentSubjectIndex];
-    let correct = 0;
+    const isFinalSubject = currentSubjectIndex >= subjects.length - 1;
 
     try {
-      // Calculate score for this subject
-      for (const q of currentSubject.questions) {
-        const selected = answers[q.id];
-        if (selected === q.correct_answer) correct++;
-      }
+      // Prepare answers for this subject
+      const subjectAnswers = currentSubject.questions.map((q) => ({
+        question_id: q.id,
+        selected_answer: answers[q.id] || "",
+      }));
 
-      // Save subject result
-      const { error: resultError } = await supabase
-        .from("mock_exam_subject_results")
-        .upsert({
-          attempt_id: attemptId,
-          subject_id: currentSubject.id,
-          assessment_id: currentSubject.assessment_id,
-          score: correct,
-          total_questions: currentSubject.questions.length,
-          completed_at: new Date().toISOString(),
-        });
+      // Submit via edge function for server-side scoring
+      const { data: result, error: submitError } = await supabase.functions.invoke(
+        "submit-mock-exam-subject",
+        {
+          body: {
+            attempt_id: attemptId,
+            subject_id: currentSubject.id,
+            assessment_id: currentSubject.assessment_id,
+            answers: subjectAnswers,
+            is_final_subject: isFinalSubject,
+          },
+        }
+      );
 
-      if (resultError) {
-        console.error("Failed to save subject result:", resultError);
+      if (submitError || !result?.success) {
+        console.error("Failed to save subject result:", submitError);
+        toast.error("Failed to submit subject");
+        setSubmitting(false);
+        return;
       }
 
       // Update local results
       setSubjectResults((prev) => ({
         ...prev,
-        [currentSubject.id]: { score: correct, total: currentSubject.questions.length },
+        [currentSubject.id]: { score: result.score, total: result.total_questions },
       }));
 
       if (autoSubmitted) {
         toast.info(`Time's up! ${currentSubject.name} auto-submitted.`);
       } else {
-        toast.success(`${currentSubject.name} submitted! Score: ${correct}/${currentSubject.questions.length}`);
+        toast.success(`${currentSubject.name} submitted! Score: ${result.score}/${result.total_questions}`);
       }
 
       // Move to next subject or complete exam
-      if (currentSubjectIndex < subjects.length - 1) {
+      if (!isFinalSubject) {
         setCurrentSubjectIndex((i) => i + 1);
         setCurrentQuestionIndex(0);
         setTimeRemaining(mockExam!.duration_per_subject_minutes * 60);
       } else {
         // All subjects completed
-        await completeExam();
+        setExamCompleted(true);
       }
     } catch (err) {
       console.error("Submit error:", err);
@@ -284,47 +290,6 @@ const TakeMockExam = () => {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const completeExam = async () => {
-    // Calculate total score
-    let totalScore = 0;
-    let totalQuestions = 0;
-
-    // Include current subject if not already in results
-    const currentSubject = subjects[currentSubjectIndex];
-    let currentCorrect = 0;
-    for (const q of currentSubject.questions) {
-      if (answers[q.id] === q.correct_answer) currentCorrect++;
-    }
-
-    const allResults = {
-      ...subjectResults,
-      [currentSubject.id]: { score: currentCorrect, total: currentSubject.questions.length },
-    };
-
-    for (const result of Object.values(allResults)) {
-      totalScore += result.score;
-      totalQuestions += result.total;
-    }
-
-    // Update attempt as completed
-    const { error: updateError } = await supabase
-      .from("mock_exam_attempts")
-      .update({
-        is_completed: true,
-        submitted_at: new Date().toISOString(),
-        total_score: totalScore,
-        total_questions: totalQuestions,
-      })
-      .eq("id", attemptId);
-
-    if (updateError) {
-      console.error("Failed to complete exam:", updateError);
-    }
-
-    setSubjectResults(allResults);
-    setExamCompleted(true);
   };
 
   if (loading) {
@@ -501,26 +466,6 @@ const TakeMockExam = () => {
             )}
           </div>
         </div>
-
-        {/* Question Navigation Grid */}
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground mb-2">Question Navigator:</p>
-            <div className="flex flex-wrap gap-2">
-              {currentSubject.questions.map((q, idx) => (
-                <Button
-                  key={q.id}
-                  variant={currentQuestionIndex === idx ? "default" : answers[q.id] ? "secondary" : "outline"}
-                  size="sm"
-                  className="w-10 h-10"
-                  onClick={() => setCurrentQuestionIndex(idx)}
-                >
-                  {idx + 1}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
