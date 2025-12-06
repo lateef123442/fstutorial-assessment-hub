@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Clock, ChevronRight, BookOpen } from "lucide-react";
+import { Clock, BookOpen, CheckCircle2, Circle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Question {
   id: string;
@@ -41,10 +42,11 @@ const TakeMockExam = () => {
 
   const [mockExam, setMockExam] = useState<MockExam | null>(null);
   const [subjects, setSubjects] = useState<SubjectWithQuestions[]>([]);
-  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
+  const [activeSubjectId, setActiveSubjectId] = useState<string>("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [subjectResults, setSubjectResults] = useState<Record<string, { score: number; total: number }>>({});
+  const [submittedSubjects, setSubmittedSubjects] = useState<Set<string>>(new Set());
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [attemptId, setAttemptId] = useState<string | null>(null);
 
@@ -60,7 +62,6 @@ const TakeMockExam = () => {
     }
 
     try {
-      // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         toast.error("You must be logged in");
@@ -68,7 +69,6 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Check for existing completed attempt
       const { data: existingAttempt } = await supabase
         .from("mock_exam_attempts")
         .select("id, is_completed")
@@ -82,7 +82,6 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch mock exam details
       const { data: mock, error: mockError } = await supabase
         .from("mock_exams")
         .select("id, title, total_duration_minutes, duration_per_subject_minutes, is_active")
@@ -101,7 +100,6 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch subjects linked to this mock exam
       const { data: mockSubjects, error: subjectsError } = await supabase
         .from("mock_exam_subjects")
         .select(`
@@ -121,13 +119,11 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Fetch assessments for each subject
       const subjectsWithQuestions: SubjectWithQuestions[] = [];
       
       for (const ms of mockSubjects) {
         const subject = ms.subjects as any;
         
-        // Find assessment for this subject related to this mock exam
         const { data: assessment } = await supabase
           .from("assessments")
           .select("id")
@@ -136,7 +132,6 @@ const TakeMockExam = () => {
           .maybeSingle();
 
         if (assessment) {
-          // Fetch questions securely via edge function (without correct_answer)
           const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
             "get-assessment-questions",
             { body: { assessment_id: assessment.id } }
@@ -160,10 +155,8 @@ const TakeMockExam = () => {
         return;
       }
 
-      // Sort by order position
       subjectsWithQuestions.sort((a, b) => a.order_position - b.order_position);
 
-      // Create or get attempt
       let currentAttemptId = existingAttempt?.id;
       
       if (!currentAttemptId) {
@@ -188,7 +181,8 @@ const TakeMockExam = () => {
       setAttemptId(currentAttemptId);
       setMockExam(mock);
       setSubjects(subjectsWithQuestions);
-      setTimeRemaining(mock.duration_per_subject_minutes * 60);
+      setActiveSubjectId(subjectsWithQuestions[0].id);
+      setTimeRemaining(mock.total_duration_minutes * 60);
       setLoading(false);
 
     } catch (err) {
@@ -202,12 +196,12 @@ const TakeMockExam = () => {
     loadMockExam();
   }, [loadMockExam]);
 
-  // Timer
+  // Timer for entire exam
   useEffect(() => {
     if (!mockExam || examCompleted) return;
 
     if (timeRemaining <= 0) {
-      handleSubjectSubmit(true);
+      handleSubmitExam(true);
       return;
     }
 
@@ -219,8 +213,12 @@ const TakeMockExam = () => {
   }, [timeRemaining, mockExam, examCompleted]);
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -228,65 +226,60 @@ const TakeMockExam = () => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const handleSubjectSubmit = async (autoSubmitted = false) => {
+  const getActiveSubject = () => subjects.find(s => s.id === activeSubjectId);
+
+  const getAnsweredCount = (subjectId: string) => {
+    const subject = subjects.find(s => s.id === subjectId);
+    if (!subject) return 0;
+    return subject.questions.filter(q => answers[q.id]).length;
+  };
+
+  const handleSubmitExam = async (autoSubmitted = false) => {
     if (submitting) return;
     setSubmitting(true);
 
-    const currentSubject = subjects[currentSubjectIndex];
-    const isFinalSubject = currentSubjectIndex >= subjects.length - 1;
-
     try {
-      // Prepare answers for this subject
-      const subjectAnswers = currentSubject.questions.map((q) => ({
-        question_id: q.id,
-        selected_answer: answers[q.id] || "",
-      }));
+      // Submit all subjects that haven't been submitted yet
+      for (const subject of subjects) {
+        if (submittedSubjects.has(subject.id)) continue;
 
-      // Submit via edge function for server-side scoring
-      const { data: result, error: submitError } = await supabase.functions.invoke(
-        "submit-mock-exam-subject",
-        {
-          body: {
-            attempt_id: attemptId,
-            subject_id: currentSubject.id,
-            assessment_id: currentSubject.assessment_id,
-            answers: subjectAnswers,
-            is_final_subject: isFinalSubject,
-          },
+        const subjectAnswers = subject.questions.map((q) => ({
+          question_id: q.id,
+          selected_answer: answers[q.id] || "",
+        }));
+
+        const { data: result, error: submitError } = await supabase.functions.invoke(
+          "submit-mock-exam-subject",
+          {
+            body: {
+              attempt_id: attemptId,
+              subject_id: subject.id,
+              assessment_id: subject.assessment_id,
+              answers: subjectAnswers,
+              is_final_subject: subject.id === subjects[subjects.length - 1].id,
+            },
+          }
+        );
+
+        if (!submitError && result?.success) {
+          setSubjectResults((prev) => ({
+            ...prev,
+            [subject.id]: { score: result.score, total: result.total_questions },
+          }));
+          setSubmittedSubjects(prev => new Set(prev).add(subject.id));
         }
-      );
-
-      if (submitError || !result?.success) {
-        console.error("Failed to save subject result:", submitError);
-        toast.error("Failed to submit subject");
-        setSubmitting(false);
-        return;
       }
-
-      // Update local results
-      setSubjectResults((prev) => ({
-        ...prev,
-        [currentSubject.id]: { score: result.score, total: result.total_questions },
-      }));
 
       if (autoSubmitted) {
-        toast.info(`Time's up! ${currentSubject.name} auto-submitted.`);
+        toast.info("Time's up! Exam auto-submitted.");
       } else {
-        toast.success(`${currentSubject.name} submitted! Score: ${result.score}/${result.total_questions}`);
+        toast.success("Exam submitted successfully!");
       }
-
-      // Move to next subject or complete exam
-      if (!isFinalSubject) {
-        setCurrentSubjectIndex((i) => i + 1);
-        setCurrentQuestionIndex(0);
-        setTimeRemaining(mockExam!.duration_per_subject_minutes * 60);
-      } else {
-        // All subjects completed
-        setExamCompleted(true);
-      }
+      
+      setExamCompleted(true);
     } catch (err) {
       console.error("Submit error:", err);
-      toast.error("Failed to submit");
+      toast.error("Failed to submit exam");
     } finally {
       setSubmitting(false);
     }
@@ -358,114 +351,199 @@ const TakeMockExam = () => {
     );
   }
 
-  const currentSubject = subjects[currentSubjectIndex];
-  const currentQuestion = currentSubject?.questions[currentQuestionIndex];
-  const overallProgress = ((currentSubjectIndex) / subjects.length) * 100;
-  const questionProgress = ((currentQuestionIndex + 1) / (currentSubject?.questions.length || 1)) * 100;
+  const activeSubject = getActiveSubject();
+  const currentQuestion = activeSubject?.questions[currentQuestionIndex];
 
-  if (!currentQuestion) {
+  if (!activeSubject || !currentQuestion) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>No questions available for this subject.</p>
+        <p>No questions available.</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
-      <div className="max-w-4xl mx-auto space-y-4">
-        {/* Header */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg">{mockExam?.title}</CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <BookOpen className="w-4 h-4" />
-                  Subject {currentSubjectIndex + 1} of {subjects.length}: <span className="font-medium">{currentSubject.name}</span>
-                </CardDescription>
-              </div>
-
-              <div className={`flex items-center gap-2 text-lg font-bold ${timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}`}>
-                <Clock className="w-5 h-5" />
-                {formatTime(timeRemaining)}
-              </div>
+    <div className="min-h-screen bg-background">
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-50 bg-background border-b shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-semibold text-lg">{mockExam?.title}</h1>
+              <p className="text-sm text-muted-foreground">
+                {subjects.reduce((acc, s) => acc + s.questions.length, 0)} Total Questions
+              </p>
             </div>
-            
-            <div className="space-y-2 mt-4">
-              <div className="flex justify-between text-sm">
-                <span>Overall Progress</span>
-                <span>{currentSubjectIndex}/{subjects.length} subjects</span>
-              </div>
-              <Progress value={overallProgress} className="h-2" />
-              
-              <div className="flex justify-between text-sm mt-2">
-                <span>Current Subject</span>
-                <span>Question {currentQuestionIndex + 1} of {currentSubject.questions.length}</span>
-              </div>
-              <Progress value={questionProgress} className="h-2" />
+            <div className={cn(
+              "flex items-center gap-2 text-lg font-bold px-4 py-2 rounded-lg",
+              timeRemaining < 300 ? "bg-destructive/10 text-destructive animate-pulse" : "bg-muted"
+            )}>
+              <Clock className="w-5 h-5" />
+              {formatTime(timeRemaining)}
             </div>
-          </CardHeader>
-        </Card>
-
-        {/* Question */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Question {currentQuestionIndex + 1}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-lg mb-6">{currentQuestion.question_text}</p>
-            
-            <RadioGroup
-              value={answers[currentQuestion.id] || ""}
-              onValueChange={(v) => handleAnswerChange(currentQuestion.id, v)}
-            >
-              {["A", "B", "C", "D"].map((opt) => (
-                <div
-                  key={opt}
-                  className={`border p-4 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${
-                    answers[currentQuestion.id] === opt ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                  }`}
-                >
-                  <RadioGroupItem value={opt} id={`opt-${opt}`} />
-                  <Label htmlFor={`opt-${opt}`} className="flex-1 cursor-pointer">
-                    <span className="font-medium mr-2">{opt}.</span>
-                    {currentQuestion[`option_${opt.toLowerCase()}` as keyof Question]}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
-
-        {/* Navigation */}
-        <div className="flex justify-between gap-4">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
-            disabled={currentQuestionIndex === 0}
-          >
-            Previous
-          </Button>
-
-          <div className="flex gap-2">
-            {currentQuestionIndex < currentSubject.questions.length - 1 ? (
-              <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
-                Next <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            ) : (
-              <Button 
-                onClick={() => handleSubjectSubmit(false)} 
-                disabled={submitting}
-                variant="default"
-              >
-                {submitting ? "Submitting..." : currentSubjectIndex < subjects.length - 1 ? "Submit & Next Subject" : "Submit Exam"}
-              </Button>
-            )}
           </div>
         </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-4">
+        {/* Subject Tabs - JAMB Style */}
+        <Tabs value={activeSubjectId} onValueChange={(id) => {
+          setActiveSubjectId(id);
+          setCurrentQuestionIndex(0);
+        }}>
+          <TabsList className="w-full h-auto flex-wrap justify-start gap-2 bg-transparent p-0 mb-4">
+            {subjects.map((subject) => {
+              const answered = getAnsweredCount(subject.id);
+              const total = subject.questions.length;
+              
+              return (
+                <TabsTrigger
+                  key={subject.id}
+                  value={subject.id}
+                  className={cn(
+                    "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground",
+                    "px-4 py-2 rounded-lg border",
+                    "flex items-center gap-2"
+                  )}
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>{subject.name}</span>
+                  <span className={cn(
+                    "text-xs px-2 py-0.5 rounded-full",
+                    answered === total ? "bg-green-500/20 text-green-700" : "bg-muted"
+                  )}>
+                    {answered}/{total}
+                  </span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+
+          {subjects.map((subject) => (
+            <TabsContent key={subject.id} value={subject.id} className="mt-0">
+              <div className="grid lg:grid-cols-4 gap-4">
+                {/* Question Navigator Panel */}
+                <Card className="lg:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">
+                      {subject.name} Questions
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {getAnsweredCount(subject.id)} of {subject.questions.length} answered
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-5 gap-2">
+                      {subject.questions.map((q, idx) => {
+                        const isAnswered = !!answers[q.id];
+                        const isCurrent = currentQuestionIndex === idx && activeSubjectId === subject.id;
+                        
+                        return (
+                          <button
+                            key={q.id}
+                            onClick={() => setCurrentQuestionIndex(idx)}
+                            className={cn(
+                              "w-9 h-9 rounded-lg text-sm font-medium transition-all flex items-center justify-center",
+                              isCurrent && "ring-2 ring-primary ring-offset-2",
+                              isAnswered 
+                                ? "bg-green-500 text-white hover:bg-green-600" 
+                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                            )}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="mt-4 pt-4 border-t space-y-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-4 h-4 rounded bg-green-500"></div>
+                        <span>Answered</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="w-4 h-4 rounded bg-muted border"></div>
+                        <span>Not Answered</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Question Display */}
+                <Card className="lg:col-span-3">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        Question {currentQuestionIndex + 1}
+                        {answers[currentQuestion.id] ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-500" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        {currentQuestionIndex + 1} of {activeSubject.questions.length}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <p className="text-lg leading-relaxed">{currentQuestion.question_text}</p>
+                    
+                    <RadioGroup
+                      value={answers[currentQuestion.id] || ""}
+                      onValueChange={(v) => handleAnswerChange(currentQuestion.id, v)}
+                    >
+                      {["A", "B", "C", "D"].map((opt) => (
+                        <div
+                          key={opt}
+                          className={cn(
+                            "border p-4 rounded-lg flex items-center gap-3 cursor-pointer transition-all",
+                            answers[currentQuestion.id] === opt 
+                              ? "border-primary bg-primary/5 ring-1 ring-primary" 
+                              : "hover:bg-muted/50"
+                          )}
+                        >
+                          <RadioGroupItem value={opt} id={`opt-${opt}`} />
+                          <Label htmlFor={`opt-${opt}`} className="flex-1 cursor-pointer">
+                            <span className="font-medium mr-2">{opt}.</span>
+                            {currentQuestion[`option_${opt.toLowerCase()}` as keyof Question]}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+
+                    {/* Navigation */}
+                    <div className="flex justify-between pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+                        disabled={currentQuestionIndex === 0}
+                      >
+                        Previous
+                      </Button>
+
+                      <div className="flex gap-2">
+                        {currentQuestionIndex < activeSubject.questions.length - 1 ? (
+                          <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
+                            Next
+                          </Button>
+                        ) : (
+                          <Button 
+                            onClick={() => handleSubmitExam(false)} 
+                            disabled={submitting}
+                            variant="default"
+                          >
+                            {submitting ? "Submitting..." : "Submit Exam"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
     </div>
   );
