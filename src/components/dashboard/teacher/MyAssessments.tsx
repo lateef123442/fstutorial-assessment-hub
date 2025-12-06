@@ -29,6 +29,7 @@ const MyAssessments = ({ teacherId }: MyAssessmentsProps) => {
         questions(count)
       `)
       .eq("teacher_id", teacherId)
+      .eq("is_mock_exam", false)
       .order("created_at", { ascending: false });
 
     if (!error && data) {

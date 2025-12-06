@@ -62,6 +62,7 @@ export type Database = {
           duration_minutes: number
           id: string
           is_active: boolean | null
+          is_mock_exam: boolean | null
           passing_score: number
           scheduled_date: string | null
           scheduled_time: string | null
@@ -74,6 +75,7 @@ export type Database = {
           duration_minutes: number
           id?: string
           is_active?: boolean | null
+          is_mock_exam?: boolean | null
           passing_score: number
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -86,6 +88,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean | null
+          is_mock_exam?: boolean | null
           passing_score?: number
           scheduled_date?: string | null
           scheduled_time?: string | null

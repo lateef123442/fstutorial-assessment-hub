@@ -188,7 +188,7 @@ const CreateMockExam = () => {
 
         if (linkError) throw linkError;
 
-        // Create assessment for this subject
+        // Create assessment for this subject (flagged as mock exam)
         const { data: assessment, error: assessError } = await supabase
           .from("assessments")
           .insert({
@@ -198,6 +198,7 @@ const CreateMockExam = () => {
             duration_minutes: formData.duration_per_subject_minutes,
             passing_score: 50,
             is_active: true,
+            is_mock_exam: true,
             scheduled_date: formData.scheduled_date,
             scheduled_time: formData.scheduled_time || null,
           })
