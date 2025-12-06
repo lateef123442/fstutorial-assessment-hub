@@ -27,6 +27,7 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
         profiles(full_name)
       `)
       .eq("is_active", true)
+      .eq("is_mock_exam", false)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
