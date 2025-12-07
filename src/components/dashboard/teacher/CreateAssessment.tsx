@@ -29,6 +29,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
     subject_id: "",
     duration_minutes: 30,
     passing_score: 70,
+    marks_per_question: 1,
     scheduled_date: "",
     scheduled_time: "",
   });
@@ -146,6 +147,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
         subject_id: "",
         duration_minutes: 30,
         passing_score: 70,
+        marks_per_question: 1,
         scheduled_date: "",
         scheduled_time: "",
       });
@@ -215,6 +217,17 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
                   type="number"
                   value={formData.passing_score}
                   onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="marks">Marks per Question</Label>
+                <Input
+                  id="marks"
+                  type="number"
+                  min={1}
+                  value={formData.marks_per_question}
+                  onChange={(e) => setFormData({ ...formData, marks_per_question: parseInt(e.target.value) || 1 })}
                   required
                 />
               </div>

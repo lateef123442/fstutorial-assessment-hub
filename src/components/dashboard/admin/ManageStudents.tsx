@@ -34,18 +34,27 @@ const ManageStudents = () => {
   }, []);
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
-      .from("user_roles")
-      .select(`
-        user_id,
-        profiles(full_name, email)
-      `)
-      .eq("role", "student");
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select(`
+          user_id,
+          profiles!inner(full_name, email)
+        `)
+        .eq("role", "student");
 
-    if (!error && data) {
-      setStudents(data);
+      if (error) {
+        console.error("Error fetching students:", error);
+        toast.error("Failed to load students");
+      } else {
+        setStudents(data || []);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const validateForm = () => {
