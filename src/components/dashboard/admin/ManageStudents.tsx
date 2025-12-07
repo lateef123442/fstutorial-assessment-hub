@@ -123,17 +123,23 @@ const ManageStudents = () => {
   };
 
   const handleDelete = async (userId: string) => {
-    if (window.confirm("Delete this student? This will remove all their data.")) {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId);
+    if (window.confirm("Delete this student? This will permanently remove their account and all their data.")) {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("delete-student", {
+          body: { student_id: userId },
+        });
 
-      if (error) {
-        toast.error("Failed to delete student");
-      } else {
+        if (error || data?.error) {
+          throw new Error(error?.message || data?.error || "Failed to delete student");
+        }
+
         toast.success("Student deleted successfully");
         fetchStudents();
+      } catch (err: any) {
+        toast.error(`Error: ${err.message}`);
+      } finally {
+        setLoading(false);
       }
     }
   };
