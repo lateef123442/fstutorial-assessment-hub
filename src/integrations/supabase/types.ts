@@ -63,6 +63,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_mock_exam: boolean | null
+          marks_per_question: number | null
           passing_score: number
           scheduled_date: string | null
           scheduled_time: string | null
@@ -76,6 +77,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_mock_exam?: boolean | null
+          marks_per_question?: number | null
           passing_score: number
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -89,6 +91,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_mock_exam?: boolean | null
+          marks_per_question?: number | null
           passing_score?: number
           scheduled_date?: string | null
           scheduled_time?: string | null
@@ -326,6 +329,7 @@ export type Database = {
           duration_per_subject_minutes: number
           id: string
           is_active: boolean | null
+          marks_per_question: number | null
           scheduled_date: string
           scheduled_time: string | null
           title: string
@@ -338,6 +342,7 @@ export type Database = {
           duration_per_subject_minutes?: number
           id?: string
           is_active?: boolean | null
+          marks_per_question?: number | null
           scheduled_date: string
           scheduled_time?: string | null
           title: string
@@ -350,6 +355,7 @@ export type Database = {
           duration_per_subject_minutes?: number
           id?: string
           is_active?: boolean | null
+          marks_per_question?: number | null
           scheduled_date?: string
           scheduled_time?: string | null
           title?: string

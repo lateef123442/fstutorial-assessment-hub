@@ -39,6 +39,7 @@ const CreateMockExam = () => {
     scheduled_time: "",
     duration_per_subject_minutes: 45,
     total_duration_minutes: 180,
+    marks_per_question: 1,
     is_active: true,
   });
 
@@ -165,6 +166,7 @@ const CreateMockExam = () => {
           scheduled_time: formData.scheduled_time || null,
           duration_per_subject_minutes: formData.duration_per_subject_minutes,
           total_duration_minutes: formData.total_duration_minutes,
+          marks_per_question: formData.marks_per_question,
           is_active: formData.is_active,
           created_by: user.id,
         })
@@ -197,6 +199,7 @@ const CreateMockExam = () => {
             teacher_id: user.id,
             duration_minutes: formData.duration_per_subject_minutes,
             passing_score: 50,
+            marks_per_question: formData.marks_per_question,
             is_active: true,
             is_mock_exam: true,
             scheduled_date: formData.scheduled_date,
@@ -240,6 +243,7 @@ const CreateMockExam = () => {
         scheduled_time: "",
         duration_per_subject_minutes: 45,
         total_duration_minutes: 180,
+        marks_per_question: 1,
         is_active: true,
       });
       setSelectedSubjectIds([]);
@@ -310,6 +314,17 @@ const CreateMockExam = () => {
                   type="number"
                   value={formData.total_duration_minutes}
                   onChange={(e) => setFormData({ ...formData, total_duration_minutes: parseInt(e.target.value) })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="marks_per_question">Marks per Question</Label>
+                <Input
+                  id="marks_per_question"
+                  type="number"
+                  min={1}
+                  value={formData.marks_per_question}
+                  onChange={(e) => setFormData({ ...formData, marks_per_question: parseInt(e.target.value) || 1 })}
                   required
                 />
               </div>
