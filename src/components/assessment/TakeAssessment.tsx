@@ -36,7 +36,7 @@ const TakeAssessment = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [violations, setViolations] = useState(0);
+  
 
   const [loading, setLoading] = useState(true);
   const isSubmittingRef = useRef(false);
@@ -144,22 +144,12 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
-  // Handle tab visibility change with warnings
+  // Handle tab visibility change - auto submit immediately on first leave
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && !isSubmittingRef.current && assessment) {
-        setViolations((v) => {
-          const newViolations = v + 1;
-          if (newViolations >= 3) {
-            toast.error("Too many violations! Submitting your assessment.");
-            handleSubmit(true);
-          } else {
-            toast.warning(
-              `Warning: Leaving the assessment tab. Violation ${newViolations}/3`
-            );
-          }
-          return newViolations;
-        });
+        toast.error("You left the assessment tab. Your exam has been auto-submitted.");
+        handleSubmit(true);
       }
     };
 
@@ -201,13 +191,6 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Update violations count if any
-      if (violations > 0) {
-        await supabase
-          .from("attempts")
-          .update({ violations })
-          .eq("id", attemptId);
-      }
 
       if (autoSubmitted) {
         toast.info(

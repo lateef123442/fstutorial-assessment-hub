@@ -212,6 +212,21 @@ const TakeMockExam = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, mockExam, examCompleted]);
 
+  // Handle tab visibility change - auto submit immediately on first leave
+  useEffect(() => {
+    if (!mockExam || examCompleted) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && !submitting) {
+        toast.error("You left the exam tab. Your exam has been auto-submitted.");
+        handleSubmitExam(true);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [mockExam, examCompleted, submitting]);
+
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
