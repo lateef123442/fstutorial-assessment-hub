@@ -36,22 +36,49 @@ const ManageStudents = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      // First get all student user_ids
+      const { data: studentRoles, error: rolesError } = await supabase
         .from("user_roles")
-        .select(`
-          user_id,
-          profiles!inner(full_name, email)
-        `)
+        .select("user_id")
         .eq("role", "student");
 
-      if (error) {
-        console.error("Error fetching students:", error);
+      if (rolesError) {
+        console.error("Error fetching student roles:", rolesError);
+        toast.error("Failed to load students");
+        setLoading(false);
+        return;
+      }
+
+      if (!studentRoles || studentRoles.length === 0) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+
+      // Then get profiles for those users
+      const studentIds = studentRoles.map(r => r.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", studentIds);
+
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
         toast.error("Failed to load students");
       } else {
-        setStudents(data || []);
+        // Map to expected format
+        const formattedStudents = (profiles || []).map(profile => ({
+          user_id: profile.id,
+          profiles: {
+            full_name: profile.full_name,
+            email: profile.email
+          }
+        }));
+        setStudents(formattedStudents);
       }
     } catch (err) {
       console.error("Fetch error:", err);
+      toast.error("Failed to load students");
     } finally {
       setLoading(false);
     }

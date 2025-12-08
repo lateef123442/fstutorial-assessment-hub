@@ -103,11 +103,20 @@ serve(async (req) => {
       questions?.map(q => [q.id, q.correct_answer]) || []
     );
 
+    // Get assessment details including marks_per_question
+    const { data: assessment } = await supabaseAdmin
+      .from("assessments")
+      .select("passing_score, marks_per_question")
+      .eq("id", attempt.assessment_id)
+      .single();
+
+    const marksPerQuestion = assessment?.marks_per_question || 1;
+
     // Calculate score and prepare answer records
-    let score = 0;
+    let correctCount = 0;
     const answerRecords = (answers as AnswerSubmission[]).map(answer => {
       const isCorrect = answer.selected_answer === correctAnswerMap.get(answer.question_id);
-      if (isCorrect) score++;
+      if (isCorrect) correctCount++;
       return {
         attempt_id,
         question_id: answer.question_id,
@@ -116,15 +125,11 @@ serve(async (req) => {
       };
     });
 
-    // Get passing score
-    const { data: assessment } = await supabaseAdmin
-      .from("assessments")
-      .select("passing_score")
-      .eq("id", attempt.assessment_id)
-      .single();
-
+    // Calculate total marks based on marks_per_question
     const totalQuestions = answers.length;
-    const percentage = totalQuestions > 0 ? (score / totalQuestions) * 100 : 0;
+    const score = correctCount * marksPerQuestion;
+    const maxScore = totalQuestions * marksPerQuestion;
+    const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
     const passed = percentage >= (assessment?.passing_score || 50);
 
     // Save answers
@@ -160,13 +165,15 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Assessment submitted: attempt=${attempt_id}, score=${score}/${totalQuestions}, passed=${passed}, user=${user.id}`);
+    console.log(`Assessment submitted: attempt=${attempt_id}, score=${score}/${maxScore}, passed=${passed}, user=${user.id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         score,
+        max_score: maxScore,
         total_questions: totalQuestions,
+        correct_count: correctCount,
         passed,
         percentage: Math.round(percentage),
       }),

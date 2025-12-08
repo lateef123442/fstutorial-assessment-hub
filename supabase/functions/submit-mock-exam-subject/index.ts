@@ -109,17 +109,36 @@ serve(async (req) => {
       questions?.map(q => [q.id, q.correct_answer]) || []
     );
 
-    // Calculate score
-    let score = 0;
+    // Get mock exam to retrieve marks_per_question
+    const { data: mockExamAttempt } = await supabaseAdmin
+      .from("mock_exam_attempts")
+      .select("mock_exam_id")
+      .eq("id", attempt_id)
+      .single();
+
+    let marksPerQuestion = 1;
+    if (mockExamAttempt) {
+      const { data: mockExam } = await supabaseAdmin
+        .from("mock_exams")
+        .select("marks_per_question")
+        .eq("id", mockExamAttempt.mock_exam_id)
+        .single();
+      marksPerQuestion = mockExam?.marks_per_question || 1;
+    }
+
+    // Calculate score using marks_per_question
+    let correctCount = 0;
     (answers as AnswerSubmission[]).forEach(answer => {
       if (answer.selected_answer === correctAnswerMap.get(answer.question_id)) {
-        score++;
+        correctCount++;
       }
     });
 
     const totalQuestions = answers.length;
+    const score = correctCount * marksPerQuestion;
+    const maxScore = totalQuestions * marksPerQuestion;
 
-    // Save subject result
+    // Save subject result with marks-based score
     const { error: resultError } = await supabaseAdmin
       .from("mock_exam_subject_results")
       .upsert({
@@ -127,7 +146,7 @@ serve(async (req) => {
         subject_id,
         assessment_id,
         score,
-        total_questions: totalQuestions,
+        total_questions: maxScore, // Store max possible score instead of question count
         completed_at: new Date().toISOString(),
       });
 
@@ -176,12 +195,14 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Mock exam subject submitted: attempt=${attempt_id}, subject=${subject_id}, score=${score}/${totalQuestions}, user=${user.id}`);
+    console.log(`Mock exam subject submitted: attempt=${attempt_id}, subject=${subject_id}, score=${score}/${maxScore}, user=${user.id}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         score,
+        max_score: maxScore,
+        correct_count: correctCount,
         total_questions: totalQuestions,
         exam_completed: examCompleted,
         ...(examCompleted && { total_score: totalScore, total_exam_questions: totalExamQuestions }),
