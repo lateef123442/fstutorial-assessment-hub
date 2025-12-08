@@ -124,12 +124,19 @@ const TakeMockExam = () => {
       for (const ms of mockSubjects) {
         const subject = ms.subjects as any;
         
-        const { data: assessment } = await supabase
+        // Find assessment by subject_id, is_mock_exam flag, and title containing mock exam title (trimmed)
+        const trimmedTitle = mock.title.trim();
+        const { data: assessments } = await supabase
           .from("assessments")
-          .select("id")
+          .select("id, title")
           .eq("subject_id", ms.subject_id)
-          .ilike("title", `%${mock.title}%`)
-          .maybeSingle();
+          .eq("is_mock_exam", true);
+
+        // Find the best matching assessment - one that contains the mock exam title
+        const assessment = assessments?.find(a => 
+          a.title.toLowerCase().includes(trimmedTitle.toLowerCase()) ||
+          a.title.toLowerCase().startsWith(trimmedTitle.toLowerCase())
+        ) || assessments?.[0]; // Fallback to first assessment for this subject if no exact match
 
         if (assessment) {
           const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
@@ -137,7 +144,7 @@ const TakeMockExam = () => {
             { body: { assessment_id: assessment.id } }
           );
 
-          if (!questionsError && questionsResponse?.questions) {
+          if (!questionsError && questionsResponse?.questions && questionsResponse.questions.length > 0) {
             subjectsWithQuestions.push({
               id: subject.id,
               name: subject.name,
@@ -145,7 +152,11 @@ const TakeMockExam = () => {
               assessment_id: assessment.id,
               questions: questionsResponse.questions,
             });
+          } else {
+            console.warn(`No questions found for subject ${subject.name}, assessment ${assessment.id}`);
           }
+        } else {
+          console.warn(`No assessment found for subject ${subject.name} (${ms.subject_id})`);
         }
       }
 
