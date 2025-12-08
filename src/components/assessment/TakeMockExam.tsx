@@ -121,28 +121,50 @@ const TakeMockExam = () => {
 
       const subjectsWithQuestions: SubjectWithQuestions[] = [];
       
+      // Normalize title for comparison (remove extra whitespace)
+      const normalizeTitle = (title: string) => title.trim().replace(/\s+/g, ' ').toLowerCase();
+      const normalizedMockTitle = normalizeTitle(mock.title);
+      
+      console.log(`Loading mock exam: "${mock.title}" (normalized: "${normalizedMockTitle}")`);
+      console.log(`Found ${mockSubjects.length} subjects linked to this mock exam`);
+      
       for (const ms of mockSubjects) {
         const subject = ms.subjects as any;
+        console.log(`Processing subject: ${subject.name} (${ms.subject_id})`);
         
-        // Find assessment by subject_id, is_mock_exam flag, and title containing mock exam title (trimmed)
-        const trimmedTitle = mock.title.trim();
-        const { data: assessments } = await supabase
+        // Find all mock exam assessments for this subject
+        const { data: assessments, error: assessError } = await supabase
           .from("assessments")
           .select("id, title")
           .eq("subject_id", ms.subject_id)
           .eq("is_mock_exam", true);
 
-        // Find the best matching assessment - one that contains the mock exam title
-        const assessment = assessments?.find(a => 
-          a.title.toLowerCase().includes(trimmedTitle.toLowerCase()) ||
-          a.title.toLowerCase().startsWith(trimmedTitle.toLowerCase())
-        ) || assessments?.[0]; // Fallback to first assessment for this subject if no exact match
+        if (assessError) {
+          console.error(`Error fetching assessments for subject ${subject.name}:`, assessError);
+          continue;
+        }
+
+        console.log(`Found ${assessments?.length || 0} mock assessments for ${subject.name}:`, assessments?.map(a => a.title));
+
+        // Find the best matching assessment - normalize both titles for comparison
+        const assessment = assessments?.find(a => {
+          const normalizedAssessTitle = normalizeTitle(a.title);
+          return normalizedAssessTitle.includes(normalizedMockTitle) ||
+                 normalizedAssessTitle.startsWith(normalizedMockTitle);
+        }) || assessments?.[0]; // Fallback to first if no title match
 
         if (assessment) {
+          console.log(`Using assessment "${assessment.title}" (${assessment.id}) for ${subject.name}`);
+          
           const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
             "get-assessment-questions",
             { body: { assessment_id: assessment.id } }
           );
+
+          console.log(`Questions response for ${subject.name}:`, { 
+            count: questionsResponse?.questions?.length, 
+            error: questionsError 
+          });
 
           if (!questionsError && questionsResponse?.questions && questionsResponse.questions.length > 0) {
             subjectsWithQuestions.push({
@@ -153,12 +175,14 @@ const TakeMockExam = () => {
               questions: questionsResponse.questions,
             });
           } else {
-            console.warn(`No questions found for subject ${subject.name}, assessment ${assessment.id}`);
+            console.warn(`No questions returned for subject ${subject.name}, assessment ${assessment.id}`);
           }
         } else {
           console.warn(`No assessment found for subject ${subject.name} (${ms.subject_id})`);
         }
       }
+      
+      console.log(`Total subjects with questions: ${subjectsWithQuestions.length}`);
 
       if (subjectsWithQuestions.length === 0) {
         toast.error("No questions found for this mock exam");
