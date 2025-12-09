@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import ManageSubjects from "./admin/ManageSubjects";
 import Analytics from "./admin/Analytics";
 import ViewStudentAttempts from "./admin/ViewStudentAttempts";
 import CreateMockExam from "./admin/CreateMockExam";
+import CreateMockFromExisting from "./admin/CreateMockFromExisting";
 import ViewMockExamResults from "./admin/ViewMockExamResults";
 
 
@@ -50,7 +51,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7 mb-8">
+          <TabsList className="grid w-full grid-cols-8 mb-8">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -77,7 +78,11 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="createmock" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Create Mock</span>
+              <span className="hidden sm:inline">New Mock</span>
+            </TabsTrigger>
+            <TabsTrigger value="mockfromexisting" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              <span className="hidden sm:inline">From Existing</span>
             </TabsTrigger>
           </TabsList>
 
@@ -107,6 +112,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
           <TabsContent value="createmock" className="animate-fade-in">
             <CreateMockExam />
+          </TabsContent>
+
+          <TabsContent value="mockfromexisting" className="animate-fade-in">
+            <CreateMockFromExisting />
           </TabsContent>
         </Tabs>
       </main>
