@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Eye, ChevronDown, ChevronUp, Shuffle } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 import { User } from "@supabase/supabase-js";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Subject {
   id: string;
@@ -22,6 +24,19 @@ interface SelectedSubject {
   subjectName: string;
   questionCount: number;
   selectedCount: number;
+}
+
+interface PreviewQuestion {
+  question_text: string;
+  option_a: string;
+  option_b: string;
+  option_c: string;
+  option_d: string;
+  correct_answer: string;
+}
+
+interface PreviewData {
+  [subjectId: string]: PreviewQuestion[];
 }
 
 const CreateMockFromExisting = () => {
@@ -42,6 +57,10 @@ const CreateMockFromExisting = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previewData, setPreviewData] = useState<PreviewData>({});
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -71,18 +90,15 @@ const CreateMockFromExisting = () => {
   const fetchSubjectsWithQuestions = async () => {
     setIsLoading(true);
     try {
-      // Get all subjects
       const { data: subjects, error: subjectsError } = await supabase
         .from("subjects")
         .select("id, name");
 
       if (subjectsError) throw subjectsError;
 
-      // For each subject, count available questions
       const subjectsWithCounts: Subject[] = [];
       
       for (const subject of subjects || []) {
-        // Count questions from non-mock assessments for this subject
         const { data: assessments } = await supabase
           .from("assessments")
           .select("id")
@@ -138,18 +154,26 @@ const CreateMockFromExisting = () => {
           subjectId: subject.id,
           subjectName: subject.name,
           questionCount: subject.questionCount,
-          selectedCount: Math.min(30, subject.questionCount), // Default to 30 or max available
+          selectedCount: Math.min(30, subject.questionCount),
         }]);
       }
     } else {
       setSelectedSubjects(prev => prev.filter(s => s.subjectId !== subjectId));
+      setPreviewData(prev => {
+        const newData = { ...prev };
+        delete newData[subjectId];
+        return newData;
+      });
     }
+    setShowPreview(false);
   };
 
   const updateSelectedCount = (subjectId: string, count: number) => {
     setSelectedSubjects(prev => prev.map(s => 
       s.subjectId === subjectId ? { ...s, selectedCount: count } : s
     ));
+    setShowPreview(false);
+    setPreviewData({});
   };
 
   const getQuestionOptions = (maxCount: number) => {
@@ -158,6 +182,95 @@ const CreateMockFromExisting = () => {
       options.push(i);
     }
     return options;
+  };
+
+  const fetchPreviewQuestions = async () => {
+    if (selectedSubjects.length !== 4) {
+      toast.error("Please select exactly 4 subjects first");
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    try {
+      const newPreviewData: PreviewData = {};
+
+      for (const subj of selectedSubjects) {
+        const { data: assessments } = await supabase
+          .from("assessments")
+          .select("id")
+          .eq("subject_id", subj.subjectId)
+          .eq("is_mock_exam", false);
+
+        if (!assessments || assessments.length === 0) {
+          throw new Error(`No assessments found for ${subj.subjectName}`);
+        }
+
+        const assessmentIds = assessments.map(a => a.id);
+        
+        const { data: allQuestions, error: qFetchError } = await supabase
+          .from("questions")
+          .select("question_text, option_a, option_b, option_c, option_d, correct_answer")
+          .in("assessment_id", assessmentIds);
+
+        if (qFetchError) throw qFetchError;
+        if (!allQuestions || allQuestions.length < subj.selectedCount) {
+          throw new Error(`Not enough questions for ${subj.subjectName}`);
+        }
+
+        const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+        newPreviewData[subj.subjectId] = shuffled.slice(0, subj.selectedCount);
+      }
+
+      setPreviewData(newPreviewData);
+      setShowPreview(true);
+      setExpandedSubjects([selectedSubjects[0]?.subjectId]);
+      toast.success("Preview generated! Review the questions below.");
+    } catch (error: any) {
+      toast.error("Failed to generate preview: " + error.message);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const reshuffleSubject = async (subjectId: string) => {
+    const subj = selectedSubjects.find(s => s.subjectId === subjectId);
+    if (!subj) return;
+
+    try {
+      const { data: assessments } = await supabase
+        .from("assessments")
+        .select("id")
+        .eq("subject_id", subjectId)
+        .eq("is_mock_exam", false);
+
+      if (!assessments || assessments.length === 0) return;
+
+      const assessmentIds = assessments.map(a => a.id);
+      
+      const { data: allQuestions } = await supabase
+        .from("questions")
+        .select("question_text, option_a, option_b, option_c, option_d, correct_answer")
+        .in("assessment_id", assessmentIds);
+
+      if (!allQuestions || allQuestions.length < subj.selectedCount) return;
+
+      const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+      setPreviewData(prev => ({
+        ...prev,
+        [subjectId]: shuffled.slice(0, subj.selectedCount)
+      }));
+      toast.success(`Reshuffled ${subj.subjectName} questions`);
+    } catch (error) {
+      toast.error("Failed to reshuffle");
+    }
+  };
+
+  const toggleSubjectExpanded = (subjectId: string) => {
+    setExpandedSubjects(prev => 
+      prev.includes(subjectId) 
+        ? prev.filter(id => id !== subjectId)
+        : [...prev, subjectId]
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -183,10 +296,15 @@ const CreateMockFromExisting = () => {
       return;
     }
 
+    // If no preview, generate one first
+    if (Object.keys(previewData).length === 0) {
+      toast.error("Please preview questions first before creating");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Create mock exam
       const { data: mockExam, error: mockError } = await supabase
         .from("mock_exams")
         .insert({
@@ -205,11 +323,9 @@ const CreateMockFromExisting = () => {
 
       if (mockError) throw mockError;
 
-      // For each selected subject
       for (let i = 0; i < selectedSubjects.length; i++) {
         const subj = selectedSubjects[i];
         
-        // Link subject to mock exam
         const { error: linkError } = await supabase
           .from("mock_exam_subjects")
           .insert({
@@ -220,35 +336,6 @@ const CreateMockFromExisting = () => {
 
         if (linkError) throw linkError;
 
-        // Get random questions from existing assessments for this subject
-        const { data: assessments } = await supabase
-          .from("assessments")
-          .select("id")
-          .eq("subject_id", subj.subjectId)
-          .eq("is_mock_exam", false);
-
-        if (!assessments || assessments.length === 0) {
-          throw new Error(`No assessments found for ${subj.subjectName}`);
-        }
-
-        const assessmentIds = assessments.map(a => a.id);
-        
-        // Fetch all questions for this subject
-        const { data: allQuestions, error: qFetchError } = await supabase
-          .from("questions")
-          .select("question_text, option_a, option_b, option_c, option_d, correct_answer")
-          .in("assessment_id", assessmentIds);
-
-        if (qFetchError) throw qFetchError;
-        if (!allQuestions || allQuestions.length < subj.selectedCount) {
-          throw new Error(`Not enough questions for ${subj.subjectName}. Found ${allQuestions?.length || 0}, need ${subj.selectedCount}`);
-        }
-
-        // Shuffle and pick random questions
-        const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-        const selectedQuestions = shuffled.slice(0, subj.selectedCount);
-
-        // Create assessment for this mock exam subject
         const { data: assessment, error: assessError } = await supabase
           .from("assessments")
           .insert({
@@ -268,13 +355,12 @@ const CreateMockFromExisting = () => {
 
         if (assessError) throw assessError;
 
-        // Insert the selected questions
-        const questionsWithId = selectedQuestions.map(q => ({ ...q, assessment_id: assessment.id }));
+        // Use the previewed questions
+        const questionsWithId = previewData[subj.subjectId].map(q => ({ ...q, assessment_id: assessment.id }));
         const { error: qInsertError } = await supabase.from("questions").insert(questionsWithId);
         if (qInsertError) throw qInsertError;
       }
 
-      // Notify students
       const { data: students } = await supabase
         .from("user_roles")
         .select("user_id, profiles(full_name, email)")
@@ -293,9 +379,8 @@ const CreateMockFromExisting = () => {
         });
       }
 
-      toast.success("Mock Exam created successfully from existing questions!");
+      toast.success("Mock Exam created successfully!");
       
-      // Reset form
       setFormData({
         title: "",
         description: "",
@@ -307,6 +392,8 @@ const CreateMockFromExisting = () => {
         is_active: true,
       });
       setSelectedSubjects([]);
+      setPreviewData({});
+      setShowPreview(false);
       
     } catch (error: any) {
       console.error("Error creating mock exam:", error);
@@ -327,7 +414,7 @@ const CreateMockFromExisting = () => {
           <CardTitle>Create Mock Exam from Existing Questions</CardTitle>
           <CardDescription>
             Select 4 subjects and choose how many questions to pull from existing assessments. 
-            Questions will be randomly selected.
+            Preview questions before creating.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -515,6 +602,104 @@ const CreateMockFromExisting = () => {
                       <strong>Total Marks:</strong> {selectedSubjects.reduce((sum, s) => sum + s.selectedCount, 0) * formData.marks_per_question}
                     </p>
                   </div>
+
+                  {selectedSubjects.length === 4 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full mt-4"
+                      onClick={fetchPreviewQuestions}
+                      disabled={isPreviewLoading}
+                    >
+                      {isPreviewLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Generating Preview...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-2" />
+                          {showPreview ? "Regenerate Preview" : "Preview Questions"}
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {showPreview && Object.keys(previewData).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Eye className="w-5 h-5" />
+                    Question Preview
+                  </CardTitle>
+                  <CardDescription>
+                    Review the randomly selected questions. Click reshuffle to get different questions for a subject.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedSubjects.map((subj) => (
+                    <Collapsible
+                      key={subj.subjectId}
+                      open={expandedSubjects.includes(subj.subjectId)}
+                      onOpenChange={() => toggleSubjectExpanded(subj.subjectId)}
+                    >
+                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <CollapsibleTrigger className="flex items-center gap-2 flex-1">
+                          {expandedSubjects.includes(subj.subjectId) ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                          <span className="font-medium">{subj.subjectName}</span>
+                          <span className="text-sm text-muted-foreground">
+                            ({previewData[subj.subjectId]?.length || 0} questions)
+                          </span>
+                        </CollapsibleTrigger>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            reshuffleSubject(subj.subjectId);
+                          }}
+                        >
+                          <Shuffle className="w-4 h-4 mr-1" />
+                          Reshuffle
+                        </Button>
+                      </div>
+                      <CollapsibleContent>
+                        <ScrollArea className="h-[300px] mt-2 border rounded-lg p-4">
+                          <div className="space-y-4">
+                            {previewData[subj.subjectId]?.map((q, idx) => (
+                              <div key={idx} className="p-3 border rounded-lg bg-card">
+                                <p className="font-medium text-sm mb-2">
+                                  {idx + 1}. {q.question_text}
+                                </p>
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                  <div className={`p-2 rounded ${q.correct_answer === 'A' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                                    A: {q.option_a}
+                                  </div>
+                                  <div className={`p-2 rounded ${q.correct_answer === 'B' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                                    B: {q.option_b}
+                                  </div>
+                                  <div className={`p-2 rounded ${q.correct_answer === 'C' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                                    C: {q.option_c}
+                                  </div>
+                                  <div className={`p-2 rounded ${q.correct_answer === 'D' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-muted'}`}>
+                                    D: {q.option_d}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
                 </CardContent>
               </Card>
             )}
@@ -522,13 +707,15 @@ const CreateMockFromExisting = () => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={selectedSubjects.length !== 4 || isSubmitting}
+              disabled={selectedSubjects.length !== 4 || isSubmitting || Object.keys(previewData).length === 0}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Creating Mock Exam...
                 </>
+              ) : Object.keys(previewData).length === 0 ? (
+                "Preview Questions First"
               ) : (
                 `Create Mock Exam (${selectedSubjects.length}/4 subjects)`
               )}
