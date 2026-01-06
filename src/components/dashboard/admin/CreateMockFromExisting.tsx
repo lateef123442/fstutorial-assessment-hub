@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, RefreshCw, Eye, ChevronDown, ChevronUp, Shuffle } from "lucide-react";
+import { Loader2, RefreshCw, Eye, ChevronDown, ChevronUp, Shuffle, X, Replace } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 import { User } from "@supabase/supabase-js";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -27,6 +27,7 @@ interface SelectedSubject {
 }
 
 interface PreviewQuestion {
+  id?: string;
   question_text: string;
   option_a: string;
   option_b: string;
@@ -36,6 +37,10 @@ interface PreviewQuestion {
 }
 
 interface PreviewData {
+  [subjectId: string]: PreviewQuestion[];
+}
+
+interface AvailableQuestionsPool {
   [subjectId: string]: PreviewQuestion[];
 }
 
@@ -58,6 +63,7 @@ const CreateMockFromExisting = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewData, setPreviewData] = useState<PreviewData>({});
+  const [availablePool, setAvailablePool] = useState<AvailableQuestionsPool>({});
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [expandedSubjects, setExpandedSubjects] = useState<string[]>([]);
@@ -164,6 +170,11 @@ const CreateMockFromExisting = () => {
         delete newData[subjectId];
         return newData;
       });
+      setAvailablePool(prev => {
+        const newPool = { ...prev };
+        delete newPool[subjectId];
+        return newPool;
+      });
     }
     setShowPreview(false);
   };
@@ -174,6 +185,7 @@ const CreateMockFromExisting = () => {
     ));
     setShowPreview(false);
     setPreviewData({});
+    setAvailablePool({});
   };
 
   const getQuestionOptions = (maxCount: number) => {
@@ -193,6 +205,7 @@ const CreateMockFromExisting = () => {
     setIsPreviewLoading(true);
     try {
       const newPreviewData: PreviewData = {};
+      const newAvailablePool: AvailableQuestionsPool = {};
 
       for (const subj of selectedSubjects) {
         const { data: assessments } = await supabase
@@ -209,7 +222,7 @@ const CreateMockFromExisting = () => {
         
         const { data: allQuestions, error: qFetchError } = await supabase
           .from("questions")
-          .select("question_text, option_a, option_b, option_c, option_d, correct_answer")
+          .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer")
           .in("assessment_id", assessmentIds);
 
         if (qFetchError) throw qFetchError;
@@ -218,10 +231,15 @@ const CreateMockFromExisting = () => {
         }
 
         const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-        newPreviewData[subj.subjectId] = shuffled.slice(0, subj.selectedCount);
+        const selected = shuffled.slice(0, subj.selectedCount);
+        const remaining = shuffled.slice(subj.selectedCount);
+        
+        newPreviewData[subj.subjectId] = selected;
+        newAvailablePool[subj.subjectId] = remaining;
       }
 
       setPreviewData(newPreviewData);
+      setAvailablePool(newAvailablePool);
       setShowPreview(true);
       setExpandedSubjects([selectedSubjects[0]?.subjectId]);
       toast.success("Preview generated! Review the questions below.");
@@ -249,20 +267,89 @@ const CreateMockFromExisting = () => {
       
       const { data: allQuestions } = await supabase
         .from("questions")
-        .select("question_text, option_a, option_b, option_c, option_d, correct_answer")
+        .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer")
         .in("assessment_id", assessmentIds);
 
       if (!allQuestions || allQuestions.length < subj.selectedCount) return;
 
       const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+      const selected = shuffled.slice(0, subj.selectedCount);
+      const remaining = shuffled.slice(subj.selectedCount);
+      
       setPreviewData(prev => ({
         ...prev,
-        [subjectId]: shuffled.slice(0, subj.selectedCount)
+        [subjectId]: selected
+      }));
+      setAvailablePool(prev => ({
+        ...prev,
+        [subjectId]: remaining
       }));
       toast.success(`Reshuffled ${subj.subjectName} questions`);
     } catch (error) {
       toast.error("Failed to reshuffle");
     }
+  };
+
+  const removeQuestion = (subjectId: string, questionIndex: number) => {
+    const subj = selectedSubjects.find(s => s.subjectId === subjectId);
+    if (!subj) return;
+
+    const currentQuestions = previewData[subjectId] || [];
+    if (currentQuestions.length <= 4) {
+      toast.error("Minimum 4 questions required per subject");
+      return;
+    }
+
+    const removedQuestion = currentQuestions[questionIndex];
+    const newQuestions = currentQuestions.filter((_, idx) => idx !== questionIndex);
+    
+    setPreviewData(prev => ({
+      ...prev,
+      [subjectId]: newQuestions
+    }));
+    
+    // Add removed question back to pool
+    setAvailablePool(prev => ({
+      ...prev,
+      [subjectId]: [...(prev[subjectId] || []), removedQuestion]
+    }));
+    
+    toast.success("Question removed");
+  };
+
+  const swapQuestion = (subjectId: string, questionIndex: number) => {
+    const pool = availablePool[subjectId] || [];
+    if (pool.length === 0) {
+      toast.error("No more questions available to swap");
+      return;
+    }
+
+    const currentQuestions = previewData[subjectId] || [];
+    const oldQuestion = currentQuestions[questionIndex];
+    
+    // Get random question from pool
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const newQuestion = pool[randomIndex];
+    
+    // Swap the questions
+    const newQuestions = [...currentQuestions];
+    newQuestions[questionIndex] = newQuestion;
+    
+    // Update pool: remove new question, add old question
+    const newPool = pool.filter((_, idx) => idx !== randomIndex);
+    newPool.push(oldQuestion);
+    
+    setPreviewData(prev => ({
+      ...prev,
+      [subjectId]: newQuestions
+    }));
+    
+    setAvailablePool(prev => ({
+      ...prev,
+      [subjectId]: newPool
+    }));
+    
+    toast.success("Question swapped");
   };
 
   const toggleSubjectExpanded = (subjectId: string) => {
@@ -636,7 +723,7 @@ const CreateMockFromExisting = () => {
                     Question Preview
                   </CardTitle>
                   <CardDescription>
-                    Review the randomly selected questions. Click reshuffle to get different questions for a subject.
+                    Review the randomly selected questions. You can remove or swap individual questions, or reshuffle all questions for a subject.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -655,7 +742,7 @@ const CreateMockFromExisting = () => {
                           )}
                           <span className="font-medium">{subj.subjectName}</span>
                           <span className="text-sm text-muted-foreground">
-                            ({previewData[subj.subjectId]?.length || 0} questions)
+                            ({previewData[subj.subjectId]?.length || 0} questions, {availablePool[subj.subjectId]?.length || 0} in pool)
                           </span>
                         </CollapsibleTrigger>
                         <Button
@@ -675,8 +762,32 @@ const CreateMockFromExisting = () => {
                         <ScrollArea className="h-[300px] mt-2 border rounded-lg p-4">
                           <div className="space-y-4">
                             {previewData[subj.subjectId]?.map((q, idx) => (
-                              <div key={idx} className="p-3 border rounded-lg bg-card">
-                                <p className="font-medium text-sm mb-2">
+                              <div key={q.id || idx} className="p-3 border rounded-lg bg-card relative group">
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    onClick={() => swapQuestion(subj.subjectId, idx)}
+                                    title="Swap with random question from pool"
+                                    disabled={(availablePool[subj.subjectId]?.length || 0) === 0}
+                                  >
+                                    <Replace className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                    onClick={() => removeQuestion(subj.subjectId, idx)}
+                                    title="Remove question"
+                                    disabled={(previewData[subj.subjectId]?.length || 0) <= 4}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <p className="font-medium text-sm mb-2 pr-16">
                                   {idx + 1}. {q.question_text}
                                 </p>
                                 <div className="grid grid-cols-2 gap-2 text-sm">
