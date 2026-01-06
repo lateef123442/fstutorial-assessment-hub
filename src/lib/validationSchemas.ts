@@ -12,8 +12,7 @@ export const studentSchema = z.object({
     .string()
     .trim()
     .min(1, "Full name is required")
-    .max(100, "Full name must be less than 100 characters")
-    .regex(/^[a-zA-Z\s'-]+$/, "Name can only contain letters, spaces, hyphens, and apostrophes"),
+    .max(100, "Full name must be less than 100 characters"),
 });
 
 // Teacher validation schema
@@ -28,8 +27,7 @@ export const teacherSchema = z.object({
     .string()
     .trim()
     .min(1, "Full name is required")
-    .max(100, "Full name must be less than 100 characters")
-    .regex(/^[a-zA-Z\s'-]+$/, "Name can only contain letters, spaces, hyphens, and apostrophes"),
+    .max(100, "Full name must be less than 100 characters"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
