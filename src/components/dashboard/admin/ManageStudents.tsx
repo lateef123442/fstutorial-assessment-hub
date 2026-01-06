@@ -5,8 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit } from "lucide-react";
+import { Plus, Trash2, Edit, Copy, Check } from "lucide-react";
 import { studentSchema } from "@/lib/validationSchemas";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Generate a random password
 const generatePassword = () => {
@@ -18,6 +25,12 @@ const generatePassword = () => {
   return password;
 };
 
+interface CreatedCredentials {
+  email: string;
+  password: string;
+  fullName: string;
+}
+
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +41,9 @@ const ManageStudents = () => {
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string }>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ full_name: "", email: "" });
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -140,14 +156,15 @@ const ManageStudents = () => {
 
       if (emailError) {
         console.error("Email error:", emailError);
-        toast.warning("Student created but email failed to send. Please provide credentials manually.", {
-          duration: 10000,
-        });
-      } else {
-        toast.success("Student added! Login credentials sent to their email.", {
-          duration: 5000,
-        });
       }
+
+      // Store credentials to show in dialog
+      setCreatedCredentials({
+        email: formData.email.trim(),
+        password: generatedPassword,
+        fullName: formData.fullName.trim(),
+      });
+      setShowCredentialsDialog(true);
 
       setFormData({ email: "", fullName: "" });
       fetchStudents();
@@ -156,6 +173,22 @@ const ManageStudents = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      toast.success("Copied to clipboard!");
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      toast.error("Failed to copy");
+    }
+  };
+
+  const getFullMessage = () => {
+    if (!createdCredentials) return "";
+    return `Hello ${createdCredentials.fullName},\n\nYour login credentials are:\n\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.password}\n\nPlease keep these credentials safe and change your password after first login.`;
   };
 
   const handleDelete = async (userId: string) => {
@@ -309,6 +342,96 @@ const ManageStudents = () => {
           </div>
         </CardContent>
       </Card>
+      {/* Credentials Dialog */}
+      <Dialog open={showCredentialsDialog} onOpenChange={setShowCredentialsDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-green-600">Student Created Successfully!</DialogTitle>
+            <DialogDescription>
+              Share these credentials with the student via WhatsApp or email.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {createdCredentials && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Email</p>
+                    <p className="font-medium">{createdCredentials.email}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(createdCredentials.email, "email")}
+                  >
+                    {copiedField === "email" ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Password</p>
+                    <p className="font-mono font-medium text-lg">{createdCredentials.password}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => copyToClipboard(createdCredentials.password, "password")}
+                  >
+                    {copiedField === "password" ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Full Message (Copy for WhatsApp/Email)</Label>
+                <div className="relative">
+                  <div className="p-3 bg-muted rounded-lg text-sm whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {getFullMessage()}
+                  </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={() => copyToClipboard(getFullMessage(), "message")}
+                  >
+                    {copiedField === "message" ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1" />
+                        Copy Message
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full" 
+                onClick={() => {
+                  setShowCredentialsDialog(false);
+                  setCreatedCredentials(null);
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
