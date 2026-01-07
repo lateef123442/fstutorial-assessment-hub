@@ -35,3 +35,21 @@ verify_jwt = true
 
 [functions.submit-mock-exam-subject]
 verify_jwt = true
+
+[functions.create-student]
+verify_jwt = true
+
+[functions.delete-student]
+verify_jwt = true
+
+[functions.send-student-credentials]
+verify_jwt = true
+
+[functions.create-admin]
+verify_jwt = false
+
+[functions.send-notification-email]
+verify_jwt = false
+
+[functions.send-assessment-reminders]
+verify_jwt = false
