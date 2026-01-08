@@ -26,14 +26,25 @@ const MyAssessments = ({ teacherId }: MyAssessmentsProps) => {
       .select(`
         *,
         subjects(name),
-        questions(count)
+        questions(id)
       `)
       .eq("teacher_id", teacherId)
       .eq("is_mock_exam", false)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setAssessments(data);
+    if (error) {
+      console.error("Error fetching assessments:", error);
+      setLoading(false);
+      return;
+    }
+
+    if (data) {
+      // Transform data to include question count
+      const assessmentsWithCount = data.map(assessment => ({
+        ...assessment,
+        questionCount: assessment.questions?.length || 0
+      }));
+      setAssessments(assessmentsWithCount);
     }
     setLoading(false);
   };
@@ -131,7 +142,7 @@ const MyAssessments = ({ teacherId }: MyAssessmentsProps) => {
                           </span>
                           <span className="flex items-center gap-1">
                             <FileText className="w-4 h-4" />
-                            {assessment.questions?.length || 0} questions
+                            {assessment.questionCount || 0} questions
                           </span>
                           <span className="flex items-center gap-1">
                             <CheckCircle className="w-4 h-4" />
