@@ -1,5 +1,5 @@
+import { useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ interface TeacherDashboardProps {
 }
 
 const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
+  const [assessmentsRefreshKey, setAssessmentsRefreshKey] = useState(0);
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -60,7 +62,7 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
           </TabsList>
 
           <TabsContent value="assessments" className="animate-fade-in">
-            <MyAssessments teacherId={user.id} />
+            <MyAssessments teacherId={user.id} refreshKey={assessmentsRefreshKey} />
           </TabsContent>
 
           <TabsContent value="attempts" className="animate-fade-in">
@@ -69,7 +71,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
 
           <TabsContent value="create" className="animate-fade-in">
             <div className="space-y-6">
-              <CreateAssessment teacherId={user.id} />
+              <CreateAssessment
+                teacherId={user.id}
+                onCreated={() => setAssessmentsRefreshKey((k) => k + 1)}
+              />
               <ScheduleReminders />
             </div>
           </TabsContent>

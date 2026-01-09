@@ -8,9 +8,10 @@ import { toast } from "sonner";
 
 interface MyAssessmentsProps {
   teacherId: string;
+  refreshKey?: number;
 }
 
-const MyAssessments = ({ teacherId }: MyAssessmentsProps) => {
+const MyAssessments = ({ teacherId, refreshKey }: MyAssessmentsProps) => {
   const [assessments, setAssessments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -18,7 +19,7 @@ const MyAssessments = ({ teacherId }: MyAssessmentsProps) => {
 
   useEffect(() => {
     fetchAssessments();
-  }, [teacherId]);
+  }, [teacherId, refreshKey]);
 
   const fetchAssessments = async () => {
     const { data, error } = await supabase
