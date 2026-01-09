@@ -11,6 +11,7 @@ import { notifyUserAction } from "@/lib/emailNotifications";
 
 interface CreateAssessmentProps {
   teacherId: string;
+  onCreated?: () => void;
 }
 
 interface Question {
@@ -22,7 +23,7 @@ interface Question {
   correct_answer: string;
 }
 
-const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
+const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   const [subjects, setSubjects] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     title: "",
@@ -142,6 +143,7 @@ const CreateAssessment = ({ teacherId }: CreateAssessmentProps) => {
       }
 
       toast.success("Assessment created successfully!");
+      onCreated?.();
       setFormData({
         title: "",
         subject_id: "",

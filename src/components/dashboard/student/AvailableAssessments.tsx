@@ -18,6 +18,20 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
     fetchAssessments();
   }, []);
 
+  const getScheduledAt = (assessment: any) => {
+    if (!assessment.scheduled_date) return null;
+
+    const [y, m, d] = String(assessment.scheduled_date).split("-").map(Number);
+    const scheduled = new Date(y, (m ?? 1) - 1, d ?? 1);
+
+    if (assessment.scheduled_time) {
+      const [hours, minutes] = String(assessment.scheduled_time).split(":");
+      scheduled.setHours(parseInt(hours || "0"), parseInt(minutes || "0"), 0, 0);
+    }
+
+    return scheduled;
+  };
+
   const fetchAssessments = async () => {
     const { data, error } = await supabase
       .from("assessments")
@@ -30,23 +44,13 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
       .eq("is_mock_exam", false)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      // Filter by schedule
-      const now = new Date();
-      const available = data.filter((assessment) => {
-        if (!assessment.scheduled_date) return true;
-        
-        const scheduledDateTime = new Date(assessment.scheduled_date);
-        if (assessment.scheduled_time) {
-          const [hours, minutes] = assessment.scheduled_time.split(":");
-          scheduledDateTime.setHours(parseInt(hours), parseInt(minutes));
-        }
-        
-        return now >= scheduledDateTime;
-      });
-      
-      setAssessments(available);
+    if (error) {
+      console.error("Error fetching assessments:", error);
+      setLoading(false);
+      return;
     }
+
+    setAssessments(data ?? []);
     setLoading(false);
   };
 
@@ -83,31 +87,45 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
             <p className="text-muted-foreground">No assessments available at the moment.</p>
           ) : (
             <div className="grid gap-4">
-              {assessments.map((assessment) => (
-                <div key={assessment.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{assessment.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {assessment.subjects?.name} • by {assessment.profiles?.full_name}
-                      </p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {assessment.duration_minutes} minutes
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" />
-                          Pass: {assessment.passing_score}%
-                        </span>
+              {assessments.map((assessment) => {
+                const scheduledAt = getScheduledAt(assessment);
+                const isAvailableNow = !scheduledAt || new Date() >= scheduledAt;
+
+                return (
+                  <div key={assessment.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg">{assessment.title}</h3>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {assessment.subjects?.name} • by {assessment.profiles?.full_name}
+                        </p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-4 h-4" />
+                            {assessment.duration_minutes} minutes
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" />
+                            Pass: {assessment.passing_score}%
+                          </span>
+                          {scheduledAt && (
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              Scheduled: {scheduledAt.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      <Button
+                        onClick={() => isAvailableNow && handleStartAssessment(assessment.id)}
+                        disabled={!isAvailableNow}
+                      >
+                        {isAvailableNow ? "Start Test" : "Not Yet Open"}
+                      </Button>
                     </div>
-                    <Button onClick={() => handleStartAssessment(assessment.id)}>
-                      Start Test
-                    </Button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
