@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Clock, BookOpen, CheckCircle, Calendar } from "lucide-react";
+import { Clock, BookOpen, CheckCircle, Calendar, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 interface StudentMockExamsProps {
@@ -42,6 +42,20 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
     fetchCompletedExams();
   }, [studentId]);
 
+  const getScheduledDateTime = (exam: MockExam) => {
+    if (!exam.scheduled_date) return null;
+
+    const [y, m, d] = String(exam.scheduled_date).split("-").map(Number);
+    const scheduled = new Date(y, (m ?? 1) - 1, d ?? 1);
+
+    if (exam.scheduled_time) {
+      const [hours, minutes] = String(exam.scheduled_time).split(":");
+      scheduled.setHours(parseInt(hours || "0"), parseInt(minutes || "0"), 0, 0);
+    }
+
+    return scheduled;
+  };
+
   const fetchMockExams = async () => {
     try {
       const { data: exams, error } = await supabase
@@ -74,21 +88,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
         return;
       }
 
-      // Filter by scheduled date/time - only show exams that are available now
-      const now = new Date();
-      const available = (exams || []).filter((exam: any) => {
-        if (!exam.scheduled_date) return true;
-        
-        const scheduledDateTime = new Date(exam.scheduled_date);
-        if (exam.scheduled_time) {
-          const [hours, minutes] = exam.scheduled_time.split(":");
-          scheduledDateTime.setHours(parseInt(hours), parseInt(minutes));
-        }
-        
-        return now >= scheduledDateTime;
-      });
-
-      setMockExams(available as MockExam[]);
+      setMockExams((exams || []) as MockExam[]);
     } catch (err) {
       console.error("Error fetching mock exams:", err);
       toast.error("Failed to load mock exams");
@@ -151,6 +151,8 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
             <div className="grid gap-4">
               {mockExams.map((exam) => {
                 const isCompleted = completedExams.includes(exam.id);
+                const scheduledAt = getScheduledDateTime(exam);
+                const isAvailableNow = !scheduledAt || new Date() >= scheduledAt;
                 const subjectNames = exam.mock_exam_subjects
                   ?.sort((a, b) => a.order_position - b.order_position)
                   .map(s => s.subjects?.name)
@@ -158,26 +160,42 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
                   .join(", ");
 
                 return (
-                  <div key={exam.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                  <div
+                    key={exam.id}
+                    className={`border rounded-lg p-4 transition-colors ${
+                      isAvailableNow ? "hover:bg-muted/50" : "bg-muted/30 opacity-80"
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-lg">{exam.title}</h3>
                           {isCompleted && (
                             <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
                               Completed
                             </span>
                           )}
+                          {!isAvailableNow && (
+                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded flex items-center gap-1">
+                              <Lock className="w-3 h-3" />
+                              Scheduled
+                            </span>
+                          )}
+                          {isAvailableNow && !isCompleted && (
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                              Open Now
+                            </span>
+                          )}
                         </div>
-                        
+
                         {exam.description && (
                           <p className="text-sm text-muted-foreground">{exam.description}</p>
                         )}
-                        
+
                         <div className="text-sm text-muted-foreground">
                           <span className="font-medium">Subjects:</span> {subjectNames || "No subjects assigned"}
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
@@ -193,17 +211,28 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
                             {exam.duration_per_subject_minutes} mins/subject
                           </span>
                         </div>
+
+                        {!isAvailableNow && scheduledAt && (
+                          <p className="text-sm text-yellow-700 font-medium">
+                            Opens on {scheduledAt.toLocaleString()}
+                          </p>
+                        )}
                       </div>
-                      
-                      <Button 
-                        onClick={() => handleStartMockExam(exam.id)}
-                        disabled={isCompleted}
+
+                      <Button
+                        onClick={() => isAvailableNow && handleStartMockExam(exam.id)}
+                        disabled={isCompleted || !isAvailableNow}
                         variant={isCompleted ? "outline" : "default"}
                       >
                         {isCompleted ? (
                           <>
                             <CheckCircle className="w-4 h-4 mr-2" />
                             Completed
+                          </>
+                        ) : !isAvailableNow ? (
+                          <>
+                            <Lock className="w-4 h-4 mr-2" />
+                            Not Yet Open
                           </>
                         ) : (
                           "Start Exam"
