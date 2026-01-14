@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Clock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 
 interface Question {
   id: string;
@@ -27,6 +28,8 @@ interface Assessment {
   passing_score: number;
 }
 
+const MAX_VIOLATIONS = 3;
+
 const TakeAssessment = () => {
   const { attemptId } = useParams();
   const navigate = useNavigate();
@@ -36,7 +39,7 @@ const TakeAssessment = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [timeRemaining, setTimeRemaining] = useState(0);
-  
+  const [violations, setViolations] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const isSubmittingRef = useRef(false);
@@ -68,6 +71,9 @@ const TakeAssessment = () => {
         navigate("/dashboard");
         return;
       }
+
+      // Load existing violations
+      setViolations(attempt.violations || 0);
 
       const { data: previousAttempts, error: prevError } = await supabase
         .from("attempts")
@@ -144,18 +150,37 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
-  // Handle tab visibility change - auto submit immediately on first leave
+  // Handle tab visibility change - 3 violations rule
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && !isSubmittingRef.current && assessment) {
-        toast.error("You left the assessment tab. Your exam has been auto-submitted.");
-        handleSubmit(true);
+    if (!assessment) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden && !isSubmittingRef.current) {
+        const newViolations = violations + 1;
+        setViolations(newViolations);
+
+        // Update violations in database
+        await supabase
+          .from("attempts")
+          .update({ violations: newViolations })
+          .eq("id", attemptId);
+
+        if (newViolations >= MAX_VIOLATIONS) {
+          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam has been auto-submitted.`);
+          handleSubmit(true);
+        } else {
+          const remaining = MAX_VIOLATIONS - newViolations;
+          toast.warning(
+            `Warning: You left the assessment tab! Violation ${newViolations}/${MAX_VIOLATIONS}. ${remaining} chance(s) remaining.`,
+            { duration: 5000 }
+          );
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [assessment]);
+  }, [assessment, violations, attemptId]);
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -190,7 +215,6 @@ const TakeAssessment = () => {
         isSubmittingRef.current = false;
         return;
       }
-
 
       if (autoSubmitted) {
         toast.info(
@@ -244,7 +268,7 @@ const TakeAssessment = () => {
       <div className="max-w-4xl mx-auto">
         <Card>
           <CardHeader>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start">
               <div>
                 <CardTitle>{assessment?.title}</CardTitle>
                 <CardDescription>
@@ -252,9 +276,23 @@ const TakeAssessment = () => {
                 </CardDescription>
               </div>
 
-              <div className={`flex items-center gap-2 font-bold ${timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}`}>
-                <Clock className="w-5 h-5" />
-                {formatTime(timeRemaining)}
+              <div className="flex items-center gap-4">
+                {/* Violations Warning */}
+                {violations > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="flex items-center gap-1"
+                  >
+                    <AlertTriangle className="w-3 h-3" />
+                    {violations}/{MAX_VIOLATIONS} Violations
+                  </Badge>
+                )}
+                
+                {/* Timer */}
+                <div className={`flex items-center gap-2 font-bold ${timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}`}>
+                  <Clock className="w-5 h-5" />
+                  {formatTime(timeRemaining)}
+                </div>
               </div>
             </div>
             <Progress value={progress} className="mt-3" />
