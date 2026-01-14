@@ -36,6 +36,8 @@ interface MockExam {
   duration_per_subject_minutes: number;
 }
 
+const MAX_VIOLATIONS = 3;
+
 const TakeMockExam = () => {
   const { mockExamId } = useParams();
   const navigate = useNavigate();
@@ -49,6 +51,7 @@ const TakeMockExam = () => {
   const [submittedSubjects, setSubmittedSubjects] = useState<Set<string>>(new Set());
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [violations, setViolations] = useState(0);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -247,20 +250,31 @@ const TakeMockExam = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, mockExam, examCompleted]);
 
-  // Handle tab visibility change - auto submit immediately on first leave
+  // Handle tab visibility change - 3 violations rule
   useEffect(() => {
     if (!mockExam || examCompleted) return;
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.hidden && !submitting) {
-        toast.error("You left the exam tab. Your exam has been auto-submitted.");
-        handleSubmitExam(true);
+        const newViolations = violations + 1;
+        setViolations(newViolations);
+
+        if (newViolations >= MAX_VIOLATIONS) {
+          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam has been auto-submitted.`);
+          handleSubmitExam(true);
+        } else {
+          const remaining = MAX_VIOLATIONS - newViolations;
+          toast.warning(
+            `Warning: You left the exam tab! Violation ${newViolations}/${MAX_VIOLATIONS}. ${remaining} chance(s) remaining.`,
+            { duration: 5000 }
+          );
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [mockExam, examCompleted, submitting]);
+  }, [mockExam, examCompleted, submitting, violations]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
