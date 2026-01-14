@@ -159,15 +159,20 @@ const TakeAssessment = () => {
         const newViolations = violations + 1;
         setViolations(newViolations);
 
-        // Update violations in database
-        await supabase
+        // Update violations in database immediately
+        const { error: violationError } = await supabase
           .from("attempts")
           .update({ violations: newViolations })
           .eq("id", attemptId);
 
+        if (violationError) {
+          console.error("Failed to update violations:", violationError);
+        }
+
         if (newViolations >= MAX_VIOLATIONS) {
-          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam has been auto-submitted.`);
-          handleSubmit(true);
+          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam is being auto-submitted...`);
+          // Submit immediately and wait for completion
+          await handleSubmit(true);
         } else {
           const remaining = MAX_VIOLATIONS - newViolations;
           toast.warning(
@@ -197,6 +202,11 @@ const TakeAssessment = () => {
         selected_answer: answers[q.id] || "",
       }));
 
+      // Show loading toast for auto-submit
+      if (autoSubmitted) {
+        toast.loading("Saving your results...", { id: "auto-submit" });
+      }
+
       // Submit via edge function for server-side scoring
       const { data: result, error: submitError } = await supabase.functions.invoke(
         "submit-assessment-answers",
@@ -209,16 +219,23 @@ const TakeAssessment = () => {
         }
       );
 
+      // Dismiss loading toast
+      toast.dismiss("auto-submit");
+
       if (submitError || !result?.success) {
         console.error("Submit error:", submitError);
-        toast.error("Failed to submit assessment");
+        toast.error("Failed to submit assessment. Please try again.");
         isSubmittingRef.current = false;
         return;
       }
 
+      // Confirm save was successful
+      console.log("Assessment saved successfully:", result);
+
       if (autoSubmitted) {
-        toast.info(
-          `Assessment auto-submitted. Score: ${result.score}/${result.total_questions}`
+        toast.success(
+          `Assessment auto-submitted and saved! Score: ${result.score}/${result.total_questions} (${result.percentage}%)`,
+          { duration: 5000 }
         );
       } else {
         toast.success(
@@ -229,8 +246,9 @@ const TakeAssessment = () => {
       navigate("/dashboard");
 
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit assessment");
+      console.error("Submit error:", err);
+      toast.dismiss("auto-submit");
+      toast.error("Failed to submit assessment. Please try again.");
       isSubmittingRef.current = false;
     }
   };

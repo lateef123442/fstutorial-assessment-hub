@@ -260,8 +260,8 @@ const TakeMockExam = () => {
         setViolations(newViolations);
 
         if (newViolations >= MAX_VIOLATIONS) {
-          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam has been auto-submitted.`);
-          handleSubmitExam(true);
+          toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam is being auto-submitted...`);
+          await handleSubmitExam(true);
         } else {
           const remaining = MAX_VIOLATIONS - newViolations;
           toast.warning(
@@ -302,6 +302,11 @@ const TakeMockExam = () => {
     if (submitting) return;
     setSubmitting(true);
 
+    // Show loading toast for auto-submit
+    if (autoSubmitted) {
+      toast.loading("Saving your results...", { id: "auto-submit-mock" });
+    }
+
     try {
       // Submit all subjects that haven't been submitted yet
       for (const subject of subjects) {
@@ -325,6 +330,10 @@ const TakeMockExam = () => {
           }
         );
 
+        if (submitError) {
+          console.error(`Error submitting subject ${subject.name}:`, submitError);
+        }
+
         if (!submitError && result?.success) {
           setSubjectResults((prev) => ({
             ...prev,
@@ -334,8 +343,14 @@ const TakeMockExam = () => {
         }
       }
 
+      // Dismiss loading toast
+      toast.dismiss("auto-submit-mock");
+
+      // Confirm save was successful
+      console.log("Mock exam saved successfully");
+
       if (autoSubmitted) {
-        toast.info("Time's up! Exam auto-submitted.");
+        toast.success("Exam auto-submitted and saved!", { duration: 5000 });
       } else {
         toast.success("Exam submitted successfully!");
       }
@@ -343,7 +358,8 @@ const TakeMockExam = () => {
       setExamCompleted(true);
     } catch (err) {
       console.error("Submit error:", err);
-      toast.error("Failed to submit exam");
+      toast.dismiss("auto-submit-mock");
+      toast.error("Failed to submit exam. Please try again.");
     } finally {
       setSubmitting(false);
     }
