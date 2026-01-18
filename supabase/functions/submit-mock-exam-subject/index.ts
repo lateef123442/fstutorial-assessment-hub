@@ -89,8 +89,12 @@ serve(async (req) => {
       );
     }
 
+    // Filter out answers with empty selected_answer (unanswered questions)
+    const allAnswers = answers as AnswerSubmission[];
+    const validAnswers = allAnswers.filter(a => a.selected_answer && a.selected_answer.trim() !== "");
+    
     // Get questions with correct answers (server-side only)
-    const questionIds = (answers as AnswerSubmission[]).map(a => a.question_id);
+    const questionIds = allAnswers.map(a => a.question_id);
     const { data: questions, error: questionsError } = await supabaseAdmin
       .from("questions")
       .select("id, correct_answer")
@@ -126,17 +130,20 @@ serve(async (req) => {
       marksPerQuestion = mockExam?.marks_per_question || 1;
     }
 
-    // Calculate score using marks_per_question
+    // Calculate score using marks_per_question - only count valid (answered) questions
     let correctCount = 0;
-    (answers as AnswerSubmission[]).forEach(answer => {
+    validAnswers.forEach(answer => {
       if (answer.selected_answer === correctAnswerMap.get(answer.question_id)) {
         correctCount++;
       }
     });
 
-    const totalQuestions = answers.length;
+    // Total questions is all questions (not just answered ones)
+    const totalQuestions = allAnswers.length;
     const score = correctCount * marksPerQuestion;
     const maxScore = totalQuestions * marksPerQuestion;
+    
+    console.log(`Mock exam subject: total=${totalQuestions}, answered=${validAnswers.length}, correct=${correctCount}`);
 
     // Save subject result with marks-based score
     const { error: resultError } = await supabaseAdmin

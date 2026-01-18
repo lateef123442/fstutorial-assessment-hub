@@ -143,6 +143,7 @@ const AssessmentReview = () => {
 
   const correctCount = answers.filter(a => a.is_correct).length;
   const incorrectCount = answers.filter(a => !a.is_correct).length;
+  const unansweredCount = questions.length - answers.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,7 +171,7 @@ const AssessmentReview = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-4 gap-4 text-center">
+            <div className="grid md:grid-cols-5 gap-4 text-center">
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground">Score</p>
                 <p className="text-3xl font-bold">{attempt.score}/{attempt.total_questions}</p>
@@ -186,6 +187,10 @@ const AssessmentReview = () => {
               <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-lg">
                 <p className="text-sm text-muted-foreground">Incorrect</p>
                 <p className="text-3xl font-bold text-red-600">{incorrectCount}</p>
+              </div>
+              <div className="bg-amber-100 dark:bg-amber-900/20 p-4 rounded-lg">
+                <p className="text-sm text-muted-foreground">Unanswered</p>
+                <p className="text-3xl font-bold text-amber-600">{unansweredCount}</p>
               </div>
             </div>
 
@@ -220,14 +225,17 @@ const AssessmentReview = () => {
           ) : (
             questions.map((question, index) => {
               const answer = answers.find(a => a.question_id === question.id);
-              const isCorrect = answer?.is_correct;
-              const selectedAnswer = answer?.selected_answer || "No answer";
+              const isCorrect = answer?.is_correct || false;
+              const isAnswered = !!answer;
+              const selectedAnswer = answer?.selected_answer || null;
 
               return (
                 <Card 
                   key={question.id} 
                   className={`border-l-4 ${
-                    isCorrect 
+                    !isAnswered
+                      ? "border-l-amber-500"
+                      : isCorrect 
                       ? "border-l-green-500" 
                       : "border-l-red-500"
                   }`}
@@ -237,7 +245,9 @@ const AssessmentReview = () => {
                       <div className="flex-1">
                         <CardTitle className="text-lg flex items-center gap-2">
                           Question {index + 1}
-                          {isCorrect ? (
+                          {!isAnswered ? (
+                            <Badge variant="outline" className="border-amber-500 text-amber-600">Unanswered</Badge>
+                          ) : isCorrect ? (
                             <Badge variant="default" className="bg-green-500">Correct</Badge>
                           ) : (
                             <Badge variant="destructive">Incorrect</Badge>
@@ -245,7 +255,9 @@ const AssessmentReview = () => {
                         </CardTitle>
                         <p className="mt-2 text-base font-normal">{question.question_text}</p>
                       </div>
-                      {isCorrect ? (
+                      {!isAnswered ? (
+                        <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
+                      ) : isCorrect ? (
                         <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
                       ) : (
                         <XCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
@@ -301,15 +313,15 @@ const AssessmentReview = () => {
                       })}
                     </div>
 
-                    {!isCorrect && (
+                    {(!isAnswered || !isCorrect) && (
                       <div className="bg-muted p-4 rounded-lg mt-4">
                         <p className="font-semibold text-sm mb-1">Explanation:</p>
                         <p className="text-sm text-muted-foreground">
                           The correct answer is <strong className="text-green-600">{question.correct_answer}</strong>. 
-                          {selectedAnswer !== "No answer" ? (
-                            <> You selected <strong className="text-red-600">{selectedAnswer}</strong>.</>
+                          {!isAnswered ? (
+                            <> You did not answer this question.</>
                           ) : (
-                            <> You did not select an answer.</>
+                            <> You selected <strong className="text-red-600">{selectedAnswer}</strong>.</>
                           )}
                         </p>
                       </div>

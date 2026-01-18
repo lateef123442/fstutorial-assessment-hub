@@ -83,8 +83,12 @@ serve(async (req) => {
       );
     }
 
+    // Filter out answers with empty selected_answer (unanswered questions)
+    const validAnswers = (answers as AnswerSubmission[]).filter(a => a.selected_answer && a.selected_answer.trim() !== "");
+    const allAnswers = answers as AnswerSubmission[];
+    
     // Get questions with correct answers (server-side only)
-    const questionIds = (answers as AnswerSubmission[]).map(a => a.question_id);
+    const questionIds = allAnswers.map(a => a.question_id);
     const { data: questions, error: questionsError } = await supabaseAdmin
       .from("questions")
       .select("id, correct_answer")
@@ -112,9 +116,11 @@ serve(async (req) => {
 
     const marksPerQuestion = assessment?.marks_per_question || 1;
 
-    // Calculate score and prepare answer records
+    // Calculate score - only count answered questions
     let correctCount = 0;
-    const answerRecords = (answers as AnswerSubmission[]).map(answer => {
+    
+    // Prepare answer records only for answered questions (valid answers)
+    const answerRecords = validAnswers.map(answer => {
       const isCorrect = answer.selected_answer === correctAnswerMap.get(answer.question_id);
       if (isCorrect) correctCount++;
       return {
@@ -125,24 +131,28 @@ serve(async (req) => {
       };
     });
 
-    // Calculate total marks based on marks_per_question
-    const totalQuestions = answers.length;
+    // Calculate total marks based on marks_per_question (total questions, not just answered)
+    const totalQuestions = allAnswers.length;
     const score = correctCount * marksPerQuestion;
     const maxScore = totalQuestions * marksPerQuestion;
     const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0;
     const passed = percentage >= (assessment?.passing_score || 50);
+    
+    console.log(`Submission stats: total=${totalQuestions}, answered=${validAnswers.length}, correct=${correctCount}`);
 
-    // Save answers
-    const { error: answersError } = await supabaseAdmin
-      .from("answers")
-      .insert(answerRecords);
+    // Save answers - only if there are valid answers to save
+    if (answerRecords.length > 0) {
+      const { error: answersError } = await supabaseAdmin
+        .from("answers")
+        .insert(answerRecords);
 
-    if (answersError) {
-      console.error("Error saving answers:", answersError);
-      return new Response(
-        JSON.stringify({ error: "Failed to save answers" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (answersError) {
+        console.error("Error saving answers:", answersError);
+        return new Response(
+          JSON.stringify({ error: "Failed to save answers" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Update attempt with results
