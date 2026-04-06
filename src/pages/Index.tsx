@@ -26,7 +26,7 @@ const Index = () => {
             <GraduationCap className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            F.S.Tutorial
+            PHYSIO NEXUS
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl mx-auto">
             Advanced Computer-Based Testing Platform for Science Students
@@ -42,7 +42,7 @@ const Index = () => {
       {/* Features Section */}
       <section className="py-20 px-4 bg-background">
         <div className="container mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose F.S.Tutorial?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Why Choose PHYSIO NEXUS?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="bg-card p-8 rounded-xl shadow-md hover:shadow-lg transition-shadow animate-slide-up">
               <div className="w-14 h-14 rounded-lg gradient-primary flex items-center justify-center mb-4">
@@ -113,7 +113,7 @@ const Index = () => {
       <section className="py-20 px-4 gradient-hero">
         <div className="container mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">Ready to Transform Your Learning?</h2>
-          <p className="text-xl text-white/90 mb-8">Join F.S.Tutorial today and experience the future of education.</p>
+          <p className="text-xl text-white/90 mb-8">Join PHYSIO NEXUS today and experience the future of education.</p>
           <Button size="lg" className="bg-white text-primary hover:bg-white/90" onClick={() => navigate("/login")}>
             Start Learning Now
           </Button>
@@ -123,7 +123,7 @@ const Index = () => {
       {/* Footer */}
       <footer className="bg-card border-t py-8 px-4">
         <div className="container mx-auto text-center text-muted-foreground">
-          <p>&copy; 2025 F.S.Tutorial. All rights reserved.</p>
+          <p>&copy; 2025 PHYSIO NEXUS. All rights reserved.</p>
         </div>
       </footer>
     </div>
