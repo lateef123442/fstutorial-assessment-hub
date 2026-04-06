@@ -38,7 +38,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">F.S.Tutorial</h1>
+              <h1 className="text-2xl font-bold">PHYSIO NEXUS</h1>
               <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
           </div>
