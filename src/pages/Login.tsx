@@ -69,7 +69,7 @@ const Login = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm mb-4">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">F.S.Tutorial</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">PHYSIO NEXUS</h1>
           <p className="text-white/80">Computer-Based Testing Platform</p>
         </div>
 
