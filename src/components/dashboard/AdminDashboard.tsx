@@ -85,6 +85,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <Database className="w-4 h-4" />
               <span className="hidden sm:inline">From Existing</span>
             </TabsTrigger>
+            <TabsTrigger value="admins" className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4" />
+              <span className="hidden sm:inline">Admins</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="analytics" className="animate-fade-in">
