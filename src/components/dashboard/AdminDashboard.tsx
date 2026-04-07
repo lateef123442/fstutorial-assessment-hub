@@ -13,6 +13,7 @@ import ViewStudentAttempts from "./admin/ViewStudentAttempts";
 import CreateMockExam from "./admin/CreateMockExam";
 import CreateMockFromExisting from "./admin/CreateMockFromExisting";
 import ViewMockExamResults from "./admin/ViewMockExamResults";
+import ManageAdmins from "./admin/ManageAdmins";
 
 
 interface AdminDashboardProps {
