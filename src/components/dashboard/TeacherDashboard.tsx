@@ -9,6 +9,7 @@ import MyAssessments from "./teacher/MyAssessments";
 import CreateAssessment from "./teacher/CreateAssessment";
 import ViewAttempts from "./teacher/ViewAttempts";
 import ScheduleReminders from "./teacher/ScheduleReminders";
+import TeacherQuestionBank from "./teacher/TeacherQuestionBank";
 
 interface TeacherDashboardProps {
   user: User;
