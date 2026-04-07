@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
 import StudentMockExams from "./student/StudentMockExams";  // Ensure the file is named StudentMockExams.tsx
 import MyResults from "./student/MyResults";
+import PracticeQuestions from "./student/PracticeQuestions";
 
 interface StudentDashboardProps {
   user: User;
