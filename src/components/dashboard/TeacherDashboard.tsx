@@ -83,6 +83,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
               <ScheduleReminders />
             </div>
           </TabsContent>
+
+          <TabsContent value="questionbank" className="animate-fade-in">
+            <TeacherQuestionBank teacherId={user.id} />
+          </TabsContent>
         </Tabs>
       </main>
     </div>
