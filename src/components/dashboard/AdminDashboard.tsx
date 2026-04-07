@@ -14,6 +14,7 @@ import CreateMockExam from "./admin/CreateMockExam";
 import CreateMockFromExisting from "./admin/CreateMockFromExisting";
 import ViewMockExamResults from "./admin/ViewMockExamResults";
 import ManageAdmins from "./admin/ManageAdmins";
+import ManageQuestionBank from "./admin/ManageQuestionBank";
 
 
 interface AdminDashboardProps {
