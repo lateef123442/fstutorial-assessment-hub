@@ -47,7 +47,7 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="assessments">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               My Assessments
@@ -59,6 +59,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
             <TabsTrigger value="create" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
               Create Assessment
+            </TabsTrigger>
+            <TabsTrigger value="questionbank" className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4" />
+              Question Bank
             </TabsTrigger>
           </TabsList>
 
