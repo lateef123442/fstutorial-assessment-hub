@@ -122,6 +122,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
           <TabsContent value="mockfromexisting" className="animate-fade-in">
             <CreateMockFromExisting />
           </TabsContent>
+
+          <TabsContent value="admins" className="animate-fade-in">
+            <ManageAdmins />
+          </TabsContent>
         </Tabs>
       </main>
 
