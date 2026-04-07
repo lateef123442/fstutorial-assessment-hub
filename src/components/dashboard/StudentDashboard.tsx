@@ -56,6 +56,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <FileText className="w-3 h-4" />
               Mock Exams
             </TabsTrigger>
+            <TabsTrigger value="practice" className="flex items-center gap-2">
+              <Shuffle className="w-3 h-4" />
+              Practice
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="assessments" className="animate-fade-in">
