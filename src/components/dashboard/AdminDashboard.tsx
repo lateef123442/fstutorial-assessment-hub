@@ -86,6 +86,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
               <Database className="w-4 h-4" />
               <span className="hidden sm:inline">From Existing</span>
             </TabsTrigger>
+            <TabsTrigger value="questionbank" className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Q-Bank</span>
+            </TabsTrigger>
             <TabsTrigger value="admins" className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
               <span className="hidden sm:inline">Admins</span>
