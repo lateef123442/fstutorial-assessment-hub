@@ -1,20 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, ShieldCheck } from "lucide-react";
+import { Plus, ShieldCheck, Trash2 } from "lucide-react";
 
 const ManageAdmins = () => {
+  const [admins, setAdmins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     fullName: "",
     password: "",
   });
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string; password?: string }>({});
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
+  const fetchAdmins = async () => {
+    try {
+      const { data: adminRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin");
+
+      if (rolesError) throw rolesError;
+
+      if (!adminRoles || adminRoles.length === 0) {
+        setAdmins([]);
+        setLoadingAdmins(false);
+        return;
+      }
+
+      const adminIds = adminRoles.map((r) => r.user_id);
+      const { data: profiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", adminIds);
+
+      if (profilesError) throw profilesError;
+
+      setAdmins(profiles || []);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+      toast.error("Failed to load admins");
+    }
+    setLoadingAdmins(false);
+  };
 
   const validateForm = () => {
     const errors: typeof formErrors = {};
@@ -50,10 +87,36 @@ const ManageAdmins = () => {
 
       toast.success("Admin user created successfully!");
       setFormData({ email: "", fullName: "", password: "" });
+      fetchAdmins();
     } catch (error: any) {
       toast.error(error.message || "Failed to create admin user");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async (admin: any) => {
+    const currentUser = (await supabase.auth.getUser()).data.user;
+    if (currentUser?.id === admin.id) {
+      toast.error("You cannot delete your own admin account");
+      return;
+    }
+
+    if (!window.confirm(`Remove admin privileges from ${admin.full_name}? This will delete the user entirely.`)) return;
+
+    try {
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", admin.id)
+        .eq("role", "admin");
+
+      if (error) throw error;
+
+      toast.success("Admin removed successfully");
+      fetchAdmins();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to remove admin");
     }
   };
 
@@ -126,6 +189,38 @@ const ManageAdmins = () => {
               {loading ? "Creating..." : "Add Admin"}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Admins</CardTitle>
+          <CardDescription>View and manage existing administrator accounts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingAdmins ? (
+            <p className="text-muted-foreground">Loading admins...</p>
+          ) : admins.length === 0 ? (
+            <p className="text-muted-foreground">No admin users found.</p>
+          ) : (
+            <div className="space-y-3">
+              {admins.map((admin) => (
+                <div key={admin.id} className="p-4 border rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{admin.full_name}</p>
+                    <p className="text-sm text-muted-foreground">{admin.email}</p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteAdmin(admin)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
