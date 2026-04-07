@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
