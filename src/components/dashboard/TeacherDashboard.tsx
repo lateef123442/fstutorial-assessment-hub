@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList } from "lucide-react";
+import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import MyAssessments from "./teacher/MyAssessments";
 import CreateAssessment from "./teacher/CreateAssessment";
 import ViewAttempts from "./teacher/ViewAttempts";
 import ScheduleReminders from "./teacher/ScheduleReminders";
+import TeacherQuestionBank from "./teacher/TeacherQuestionBank";
 
 interface TeacherDashboardProps {
   user: User;
@@ -46,7 +47,7 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="assessments">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               My Assessments
@@ -58,6 +59,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
             <TabsTrigger value="create" className="flex items-center gap-2">
               <BookOpen className="w-4 h-4" />
               Create Assessment
+            </TabsTrigger>
+            <TabsTrigger value="questionbank" className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4" />
+              Question Bank
             </TabsTrigger>
           </TabsList>
 
@@ -77,6 +82,10 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
               />
               <ScheduleReminders />
             </div>
+          </TabsContent>
+
+          <TabsContent value="questionbank" className="animate-fade-in">
+            <TeacherQuestionBank teacherId={user.id} />
           </TabsContent>
         </Tabs>
       </main>

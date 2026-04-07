@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import CreateMockExam from "./admin/CreateMockExam";
 import CreateMockFromExisting from "./admin/CreateMockFromExisting";
 import ViewMockExamResults from "./admin/ViewMockExamResults";
 import ManageAdmins from "./admin/ManageAdmins";
+import ManageQuestionBank from "./admin/ManageQuestionBank";
 
 
 interface AdminDashboardProps {
@@ -52,7 +53,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-9 mb-8">
+          <TabsList className="grid w-full grid-cols-10 mb-8">
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Analytics</span>
@@ -84,6 +85,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             <TabsTrigger value="mockfromexisting" className="flex items-center gap-2">
               <Database className="w-4 h-4" />
               <span className="hidden sm:inline">From Existing</span>
+            </TabsTrigger>
+            <TabsTrigger value="questionbank" className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Q-Bank</span>
             </TabsTrigger>
             <TabsTrigger value="admins" className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" />
@@ -121,6 +126,10 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
 
           <TabsContent value="mockfromexisting" className="animate-fade-in">
             <CreateMockFromExisting />
+          </TabsContent>
+
+          <TabsContent value="questionbank" className="animate-fade-in">
+            <ManageQuestionBank />
           </TabsContent>
 
           <TabsContent value="admins" className="animate-fade-in">

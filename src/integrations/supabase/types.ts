@@ -392,6 +392,60 @@ export type Database = {
         }
         Relationships: []
       }
+      question_bank: {
+        Row: {
+          added_by: string
+          correct_answer: string
+          created_at: string | null
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject_id: string
+        }
+        Insert: {
+          added_by: string
+          correct_answer: string
+          created_at?: string | null
+          id?: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject_id: string
+        }
+        Update: {
+          added_by?: string
+          correct_answer?: string
+          created_at?: string | null
+          id?: string
+          option_a?: string
+          option_b?: string
+          option_c?: string
+          option_d?: string
+          question_text?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_bank_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_bank_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       questions: {
         Row: {
           assessment_id: string
