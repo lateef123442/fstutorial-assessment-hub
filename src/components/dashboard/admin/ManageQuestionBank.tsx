@@ -15,8 +15,8 @@ const ManageQuestionBank = () => {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
   const [formData, setFormData] = useState({
-    subject_id: "",
     question_text: "",
     option_a: "",
     option_b: "",
@@ -59,7 +59,7 @@ const ManageQuestionBank = () => {
 
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.subject_id) {
+    if (!selectedSubjectId) {
       toast.error("Please select a subject");
       return;
     }
@@ -74,7 +74,7 @@ const ManageQuestionBank = () => {
       if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase.from("question_bank").insert({
-        subject_id: formData.subject_id,
+        subject_id: selectedSubjectId,
         question_text: formData.question_text.trim(),
         option_a: formData.option_a.trim(),
         option_b: formData.option_b.trim(),
@@ -121,7 +121,7 @@ const ManageQuestionBank = () => {
           <form onSubmit={handleAddQuestion} className="space-y-4">
             <div>
               <Label>Subject</Label>
-              <Select value={formData.subject_id} onValueChange={(v) => setFormData({ ...formData, subject_id: v })}>
+              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
                 <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
