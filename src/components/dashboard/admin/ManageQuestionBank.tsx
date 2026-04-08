@@ -15,8 +15,8 @@ const ManageQuestionBank = () => {
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
   const [formData, setFormData] = useState({
-    subject_id: "",
     question_text: "",
     option_a: "",
     option_b: "",
