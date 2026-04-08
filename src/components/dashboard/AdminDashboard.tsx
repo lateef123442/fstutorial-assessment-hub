@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,19 +14,50 @@ import CreateMockFromExisting from "./admin/CreateMockFromExisting";
 import ViewMockExamResults from "./admin/ViewMockExamResults";
 import ManageAdmins from "./admin/ManageAdmins";
 import ManageQuestionBank from "./admin/ManageQuestionBank";
-
+import ManageAllUsers from "./admin/ManageAllUsers";
 
 interface AdminDashboardProps {
   user: User;
 }
 
+const tabs = [
+  { value: "analytics", icon: BarChart3, label: "Analytics" },
+  { value: "attempts", icon: FileText, label: "Attempts" },
+  { value: "mockresults", icon: ClipboardList, label: "Mock Results" },
+  { value: "teachers", icon: Users, label: "Teachers" },
+  { value: "students", icon: GraduationCap, label: "Students" },
+  { value: "subjects", icon: BookOpen, label: "Subjects" },
+  { value: "createmock", icon: BookOpen, label: "New Mock" },
+  { value: "mockfromexisting", icon: Database, label: "From Existing" },
+  { value: "questionbank", icon: HelpCircle, label: "Q-Bank" },
+  { value: "users", icon: UserCog, label: "Users" },
+  { value: "admins", icon: ShieldCheck, label: "Admins" },
+];
+
 const AdminDashboard = ({ user }: AdminDashboardProps) => {
-  const [activeTab, setActiveTab] = useState("teachers");
+  const [activeTab, setActiveTab] = useState("analytics");
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Error logging out");
+    }
+  };
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "analytics": return <Analytics />;
+      case "attempts": return <ViewStudentAttempts />;
+      case "mockresults": return <ViewMockExamResults />;
+      case "teachers": return <ManageTeachers />;
+      case "students": return <ManageStudents />;
+      case "subjects": return <ManageSubjects />;
+      case "createmock": return <CreateMockExam />;
+      case "mockfromexisting": return <CreateMockFromExisting />;
+      case "questionbank": return <ManageQuestionBank />;
+      case "users": return <ManageAllUsers />;
+      case "admins": return <ManageAdmins />;
+      default: return <Analytics />;
     }
   };
 
@@ -52,94 +82,31 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-10 mb-8">
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="attempts" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">Attempts</span>
-            </TabsTrigger>
-            <TabsTrigger value="mockresults" className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              <span className="hidden sm:inline">Mock Results</span>
-            </TabsTrigger>
-            <TabsTrigger value="teachers" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Teachers</span>
-            </TabsTrigger>
-            <TabsTrigger value="students" className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              <span className="hidden sm:inline">Students</span>
-            </TabsTrigger>
-            <TabsTrigger value="subjects" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Subjects</span>
-            </TabsTrigger>
-            <TabsTrigger value="createmock" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">New Mock</span>
-            </TabsTrigger>
-            <TabsTrigger value="mockfromexisting" className="flex items-center gap-2">
-              <Database className="w-4 h-4" />
-              <span className="hidden sm:inline">From Existing</span>
-            </TabsTrigger>
-            <TabsTrigger value="questionbank" className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Q-Bank</span>
-            </TabsTrigger>
-            <TabsTrigger value="admins" className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Admins</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Custom tab navigation - avoids Radix Tabs + Select crash */}
+        <div className="flex flex-wrap gap-1 mb-8 p-1 bg-muted rounded-lg">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeTab === tab.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <TabsContent value="analytics" className="animate-fade-in">
-            <Analytics />
-          </TabsContent>
-
-          <TabsContent value="attempts" className="animate-fade-in">
-            <ViewStudentAttempts />
-          </TabsContent>
-
-          <TabsContent value="mockresults" className="animate-fade-in">
-            <ViewMockExamResults />
-          </TabsContent>
-
-          <TabsContent value="teachers" className="animate-fade-in">
-            <ManageTeachers />
-          </TabsContent>
-
-          <TabsContent value="students" className="animate-fade-in">
-            <ManageStudents />
-          </TabsContent>
-
-          <TabsContent value="subjects" className="animate-fade-in">
-            <ManageSubjects />
-          </TabsContent>
-
-          <TabsContent value="createmock" className="animate-fade-in">
-            <CreateMockExam />
-          </TabsContent>
-
-          <TabsContent value="mockfromexisting" className="animate-fade-in">
-            <CreateMockFromExisting />
-          </TabsContent>
-
-          {activeTab === "questionbank" && (
-            <div className="animate-fade-in">
-              <ManageQuestionBank />
-            </div>
-          )}
-
-          <TabsContent value="admins" className="animate-fade-in">
-            <ManageAdmins />
-          </TabsContent>
-        </Tabs>
+        <div className="animate-fade-in" key={activeTab}>
+          {renderContent()}
+        </div>
       </main>
-
     </div>
   );
 };
