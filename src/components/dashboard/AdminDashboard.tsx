@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle, UserCog } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle, UserCog, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import ViewMockExamResults from "./admin/ViewMockExamResults";
 import ManageAdmins from "./admin/ManageAdmins";
 import ManageQuestionBank from "./admin/ManageQuestionBank";
 import ManageAllUsers from "./admin/ManageAllUsers";
+import Leaderboard from "./Leaderboard";
 
 interface AdminDashboardProps {
   user: User;
@@ -31,6 +32,7 @@ const tabs = [
   { value: "mockfromexisting", icon: Database, label: "From Existing" },
   { value: "questionbank", icon: HelpCircle, label: "Q-Bank" },
   { value: "users", icon: UserCog, label: "Users" },
+  { value: "leaderboard", icon: Trophy, label: "Leaderboard" },
   { value: "admins", icon: ShieldCheck, label: "Admins" },
 ];
 
@@ -56,6 +58,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       case "mockfromexisting": return <CreateMockFromExisting />;
       case "questionbank": return <ManageQuestionBank />;
       case "users": return <ManageAllUsers />;
+      case "leaderboard": return <Leaderboard />;
       case "admins": return <ManageAdmins />;
       default: return <Analytics />;
     }
