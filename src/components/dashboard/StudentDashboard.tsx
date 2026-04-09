@@ -1,6 +1,6 @@
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Trophy, LogOut, GraduationCap, Shuffle } from "lucide-react";
+import { FileText, Trophy, LogOut, GraduationCap, Shuffle, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import AvailableAssessments from "./student/AvailableAssessments";
 import StudentMockExams from "./student/StudentMockExams";  // Ensure the file is named StudentMockExams.tsx
 import MyResults from "./student/MyResults";
 import PracticeQuestions from "./student/PracticeQuestions";
+import Leaderboard from "./Leaderboard";
 
 interface StudentDashboardProps {
   user: User;
@@ -60,6 +61,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <Shuffle className="w-3 h-4" />
               Practice
             </TabsTrigger>
+            <TabsTrigger value="leaderboard" className="flex items-center gap-2">
+              <BarChart3 className="w-3 h-4" />
+              Leaderboard
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="assessments" className="animate-fade-in">
@@ -76,6 +81,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
 
           <TabsContent value="practice" className="animate-fade-in">
             <PracticeQuestions studentId={user.id} />
+          </TabsContent>
+
+          <TabsContent value="leaderboard" className="animate-fade-in">
+            <Leaderboard />
           </TabsContent>
         </Tabs>
       </main>
