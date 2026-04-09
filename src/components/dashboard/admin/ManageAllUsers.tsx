@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Users, Search, RefreshCw } from "lucide-react";
+import { Users, Search, RefreshCw, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface UserWithRole {
   id: string;
@@ -22,6 +23,7 @@ const ManageAllUsers = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [changingRole, setChangingRole] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,11 +51,9 @@ const ManageAllUsers = () => {
   const fetchAllUsers = async () => {
     setLoading(true);
     try {
-      // Get all profiles
       const { data: profiles, error: pErr } = await supabase.from("profiles").select("id, full_name, email").order("full_name");
       if (pErr) throw pErr;
 
-      // Get all roles
       const { data: roles, error: rErr } = await supabase.from("user_roles").select("user_id, role");
       if (rErr) throw rErr;
 
@@ -83,11 +83,9 @@ const ManageAllUsers = () => {
 
     setChangingRole(userId);
     try {
-      // Delete existing role
       const { error: deleteErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
       if (deleteErr) throw deleteErr;
 
-      // Insert new role if not "none"
       if (newRole !== "none") {
         const { error: insertErr } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
         if (insertErr) throw insertErr;
@@ -99,6 +97,29 @@ const ManageAllUsers = () => {
       toast.error(error.message || "Failed to change role");
     }
     setChangingRole(null);
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === currentUserId) {
+      toast.error("You cannot delete yourself");
+      return;
+    }
+
+    setDeletingUser(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { user_id: userId },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success("User deleted successfully");
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete user");
+    }
+    setDeletingUser(null);
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -117,7 +138,7 @@ const ManageAllUsers = () => {
           <Users className="w-5 h-5" />
           All Users
         </CardTitle>
-        <CardDescription>View all users and manage their roles ({users.length} total)</CardDescription>
+        <CardDescription>View all users, manage roles, and delete accounts ({users.length} total)</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
@@ -164,26 +185,47 @@ const ManageAllUsers = () => {
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">
                     {user.role === "none" ? "No Role" : user.role}
                   </Badge>
                   {user.id !== currentUserId && (
-                    <Select
-                      value={user.role}
-                      onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
-                      disabled={changingRole === user.id}
-                    >
-                      <SelectTrigger className="w-[130px]">
-                        <SelectValue placeholder="Change role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="teacher">Teacher</SelectItem>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="none">No Role</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        value={user.role}
+                        onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
+                        disabled={changingRole === user.id}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue placeholder="Change role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="teacher">Teacher</SelectItem>
+                          <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="none">No Role</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="icon" disabled={deletingUser === user.id}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to permanently delete <strong>{user.full_name}</strong> ({user.email})? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteUser(user.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   )}
                 </div>
               </div>
