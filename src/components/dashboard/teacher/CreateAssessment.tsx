@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, BookOpen } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
 
 interface CreateAssessmentProps {
@@ -35,137 +36,125 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
     scheduled_time: "",
   });
   const [questions, setQuestions] = useState<Question[]>([
-    {
-      question_text: "",
-      option_a: "",
-      option_b: "",
-      option_c: "",
-      option_d: "",
-      correct_answer: "A",
-    },
+    { question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" },
   ]);
 
+  // Question bank import state
+  const [showBankImport, setShowBankImport] = useState(false);
+  const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+  const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
+  const [assessmentQuestions, setAssessmentQuestions] = useState<any[]>([]);
+  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => { fetchTeacherSubjects(); }, [teacherId]);
+
   useEffect(() => {
-    fetchTeacherSubjects();
-  }, [teacherId]);
+    if (showBankImport && formData.subject_id) {
+      fetchAvailableQuestions();
+    }
+  }, [showBankImport, formData.subject_id]);
 
   const fetchTeacherSubjects = async () => {
-    const { data } = await supabase
-      .from("teacher_subjects")
-      .select("subjects(*)")
-      .eq("teacher_id", teacherId);
+    const { data } = await supabase.from("teacher_subjects").select("subjects(*)").eq("teacher_id", teacherId);
+    if (data) setSubjects(data.map((ts: any) => ts.subjects));
+  };
 
-    if (data) {
-      setSubjects(data.map((ts: any) => ts.subjects));
-    }
+  const fetchAvailableQuestions = async () => {
+    // Fetch from question bank
+    const { data: qbData } = await supabase.from("question_bank")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer")
+      .eq("subject_id", formData.subject_id);
+    setBankQuestions(qbData || []);
+
+    // Fetch from existing assessments
+    const { data: aqData } = await supabase.from("questions")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments!inner(subject_id)")
+      .eq("assessments.subject_id", formData.subject_id);
+    setAssessmentQuestions(aqData || []);
+  };
+
+  const toggleBankQuestion = (id: string) => {
+    setSelectedBankIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAssessmentQuestion = (id: string) => {
+    setSelectedAssessmentIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const importSelected = () => {
+    const imported: Question[] = [];
+    const seen = new Set<string>();
+
+    bankQuestions.filter(q => selectedBankIds.has(q.id)).forEach(q => {
+      const key = q.question_text.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        imported.push({ question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer });
+      }
+    });
+
+    assessmentQuestions.filter(q => selectedAssessmentIds.has(q.id)).forEach(q => {
+      const key = q.question_text.trim().toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        imported.push({ question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer });
+      }
+    });
+
+    if (imported.length === 0) { toast.error("No questions selected"); return; }
+
+    // Replace empty first question or append
+    const existing = questions.filter(q => q.question_text.trim() !== "");
+    setQuestions([...existing, ...imported]);
+    setShowBankImport(false);
+    setSelectedBankIds(new Set());
+    setSelectedAssessmentIds(new Set());
+    toast.success(`${imported.length} question(s) imported`);
   };
 
   const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      {
-        question_text: "",
-        option_a: "",
-        option_b: "",
-        option_c: "",
-        option_d: "",
-        correct_answer: "A",
-      },
-    ]);
+    setQuestions([...questions, { question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }]);
   };
 
-  const removeQuestion = (index: number) => {
-    setQuestions(questions.filter((_, i) => i !== index));
-  };
-
+  const removeQuestion = (index: number) => { setQuestions(questions.filter((_, i) => i !== index)); };
   const updateQuestion = (index: number, field: keyof Question, value: string) => {
-    const updated = [...questions];
-    updated[index] = { ...updated[index], [field]: value };
-    setQuestions(updated);
+    const updated = [...questions]; updated[index] = { ...updated[index], [field]: value }; setQuestions(updated);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.subject_id) {
-      toast.error("Please select a subject");
-      return;
-    }
-
-    if (questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) {
-      toast.error("Please fill in all question fields");
-      return;
-    }
+    if (!formData.subject_id) { toast.error("Please select a subject"); return; }
+    if (questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) { toast.error("Please fill in all question fields"); return; }
 
     try {
-      // Prepare data: set time to null if empty to avoid syntax error
-      const insertData = {
-        ...formData,
-        teacher_id: teacherId,
-        scheduled_time: formData.scheduled_time || null,
-      };
-
-      const { data: assessment, error: assessmentError } = await supabase
-        .from("assessments")
-        .insert(insertData)
-        .select()
-        .single();
-
+      const { data: assessment, error: assessmentError } = await supabase.from("assessments").insert({ ...formData, teacher_id: teacherId, scheduled_time: formData.scheduled_time || null }).select().single();
       if (assessmentError) throw assessmentError;
 
-      const questionsWithAssessmentId = questions.map(q => ({
-        ...q,
-        assessment_id: assessment.id,
-      }));
-
-      const { error: questionsError } = await supabase
-        .from("questions")
-        .insert(questionsWithAssessmentId);
-
+      const { error: questionsError } = await supabase.from("questions").insert(questions.map(q => ({ ...q, assessment_id: assessment.id })));
       if (questionsError) throw questionsError;
 
-      const { data: students } = await supabase
-        .from("user_roles")
-        .select("user_id, profiles(full_name, email)")
-        .eq("role", "student");
-
+      const { data: students } = await supabase.from("user_roles").select("user_id, profiles(full_name, email)").eq("role", "student");
       if (students) {
         students.forEach((student: any) => {
           if (student.profiles) {
-            notifyUserAction(
-              student.profiles.email,
-              student.profiles.full_name,
-              "assessment_created",
-              `A new assessment "${formData.title}" has been created and is now available for you to take.`
-            );
+            notifyUserAction(student.profiles.email, student.profiles.full_name, "assessment_created", `A new assessment "${formData.title}" has been created and is now available for you to take.`);
           }
         });
       }
 
       toast.success("Assessment created successfully!");
       onCreated?.();
-      setFormData({
-        title: "",
-        subject_id: "",
-        duration_minutes: 30,
-        passing_score: 70,
-        marks_per_question: 1,
-        scheduled_date: "",
-        scheduled_time: "",
-      });
-      setQuestions([
-        {
-          question_text: "",
-          option_a: "",
-          option_b: "",
-          option_c: "",
-          option_d: "",
-          correct_answer: "A",
-        },
-      ]);
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+      setFormData({ title: "", subject_id: "", duration_minutes: 30, passing_score: 70, marks_per_question: 1, scheduled_date: "", scheduled_time: "" });
+      setQuestions([{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }]);
+    } catch (error: any) { toast.error(error.message); }
   };
 
   return (
@@ -177,92 +166,86 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-4"> {/* Changed to 3 columns */}
-              <div>
-                <Label htmlFor="title">Assessment Title</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                />
-              </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div><Label htmlFor="title">Assessment Title</Label><Input id="title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required /></div>
               <div>
                 <Label>Subject</Label>
                 <Select value={formData.subject_id} onValueChange={(value) => setFormData({ ...formData, subject_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    {subjects.map((subject) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent className="bg-background z-50">{subjects.map((subject) => (<SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="passing">Passing Score (%)</Label>
-                <Input
-                  id="passing"
-                  type="number"
-                  value={formData.passing_score}
-                  onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="marks">Marks per Question</Label>
-                <Input
-                  id="marks"
-                  type="number"
-                  min={1}
-                  value={formData.marks_per_question}
-                  onChange={(e) => setFormData({ ...formData, marks_per_question: parseInt(e.target.value) || 1 })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="scheduled_date">Scheduled Date</Label>
-                <Input
-                  id="scheduled_date"
-                  type="date"
-                  value={formData.scheduled_date}
-                  onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="scheduled_time">Scheduled Time</Label>
-                <Input
-                  id="scheduled_time"
-                  type="time"
-                  value={formData.scheduled_time}
-                  onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-                  required
-                />
-              </div>
+              <div><Label htmlFor="duration">Duration (minutes)</Label><Input id="duration" type="number" value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })} required /></div>
+              <div><Label htmlFor="passing">Passing Score (%)</Label><Input id="passing" type="number" value={formData.passing_score} onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })} required /></div>
+              <div><Label htmlFor="marks">Marks per Question</Label><Input id="marks" type="number" min={1} value={formData.marks_per_question} onChange={(e) => setFormData({ ...formData, marks_per_question: parseInt(e.target.value) || 1 })} required /></div>
+              <div><Label htmlFor="scheduled_date">Scheduled Date</Label><Input id="scheduled_date" type="date" value={formData.scheduled_date} onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })} required /></div>
+              <div><Label htmlFor="scheduled_time">Scheduled Time</Label><Input id="scheduled_time" type="time" value={formData.scheduled_time} onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })} required /></div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h3 className="text-lg font-semibold">Questions</h3>
-                <Button type="button" onClick={addQuestion} variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Question
-                </Button>
+                <div className="flex gap-2">
+                  {formData.subject_id && (
+                    <Button type="button" variant="outline" onClick={() => setShowBankImport(!showBankImport)}>
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      {showBankImport ? "Hide Bank" : "Import from Bank"}
+                    </Button>
+                  )}
+                  <Button type="button" onClick={addQuestion} variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />Add Question
+                  </Button>
+                </div>
               </div>
+
+              {showBankImport && (
+                <Card className="border-primary/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Select Questions to Import</CardTitle>
+                    <CardDescription>Choose from question bank and past assessments for this subject</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {bankQuestions.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Question Bank ({bankQuestions.length})</h4>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {bankQuestions.map((q) => (
+                            <label key={q.id} className="flex items-start gap-2 p-2 border rounded cursor-pointer hover:bg-muted/50">
+                              <Checkbox checked={selectedBankIds.has(q.id)} onCheckedChange={() => toggleBankQuestion(q.id)} className="mt-1" />
+                              <div className="text-sm">
+                                <p className="font-medium">{q.question_text}</p>
+                                <p className="text-muted-foreground text-xs">A: {q.option_a} | B: {q.option_b} | C: {q.option_c} | D: {q.option_d} • Correct: {q.correct_answer}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {assessmentQuestions.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Past Assessments ({assessmentQuestions.length})</h4>
+                        <div className="space-y-2 max-h-60 overflow-y-auto">
+                          {assessmentQuestions.map((q) => (
+                            <label key={q.id} className="flex items-start gap-2 p-2 border rounded cursor-pointer hover:bg-muted/50">
+                              <Checkbox checked={selectedAssessmentIds.has(q.id)} onCheckedChange={() => toggleAssessmentQuestion(q.id)} className="mt-1" />
+                              <div className="text-sm">
+                                <p className="font-medium">{q.question_text}</p>
+                                <p className="text-muted-foreground text-xs">A: {q.option_a} | B: {q.option_b} | C: {q.option_c} | D: {q.option_d} • Correct: {q.correct_answer}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {bankQuestions.length === 0 && assessmentQuestions.length === 0 && (
+                      <p className="text-muted-foreground text-sm">No existing questions for this subject.</p>
+                    )}
+                    <Button type="button" onClick={importSelected} disabled={selectedBankIds.size + selectedAssessmentIds.size === 0}>
+                      Import {selectedBankIds.size + selectedAssessmentIds.size} Question(s)
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
 
               {questions.map((question, index) => (
                 <Card key={index}>
@@ -270,72 +253,22 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
                     <div className="flex items-center justify-between">
                       <h4 className="font-semibold">Question {index + 1}</h4>
                       {questions.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeQuestion(index)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeQuestion(index)}><Trash2 className="w-4 h-4" /></Button>
                       )}
                     </div>
-                    <div>
-                      <Label>Question Text</Label>
-                      <Input
-                        value={question.question_text}
-                        onChange={(e) => updateQuestion(index, "question_text", e.target.value)}
-                        required
-                      />
-                    </div>
+                    <div><Label>Question Text</Label><Input value={question.question_text} onChange={(e) => updateQuestion(index, "question_text", e.target.value)} required /></div>
                     <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label>Option A</Label>
-                        <Input
-                          value={question.option_a}
-                          onChange={(e) => updateQuestion(index, "option_a", e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label>Option B</Label>
-                        <Input
-                          value={question.option_b}
-                          onChange={(e) => updateQuestion(index, "option_b", e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label>Option C</Label>
-                        <Input
-                          value={question.option_c}
-                          onChange={(e) => updateQuestion(index, "option_c", e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label>Option D</Label>
-                        <Input
-                          value={question.option_d}
-                          onChange={(e) => updateQuestion(index, "option_d", e.target.value)}
-                          required
-                        />
-                      </div>
+                      <div><Label>Option A</Label><Input value={question.option_a} onChange={(e) => updateQuestion(index, "option_a", e.target.value)} required /></div>
+                      <div><Label>Option B</Label><Input value={question.option_b} onChange={(e) => updateQuestion(index, "option_b", e.target.value)} required /></div>
+                      <div><Label>Option C</Label><Input value={question.option_c} onChange={(e) => updateQuestion(index, "option_c", e.target.value)} required /></div>
+                      <div><Label>Option D</Label><Input value={question.option_d} onChange={(e) => updateQuestion(index, "option_d", e.target.value)} required /></div>
                     </div>
                     <div>
                       <Label>Correct Answer</Label>
-                      <Select
-                        value={question.correct_answer}
-                        onValueChange={(value) => updateQuestion(index, "correct_answer", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(index, "correct_answer", value)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-background z-50">
-                          <SelectItem value="A">A</SelectItem>
-                          <SelectItem value="B">B</SelectItem>
-                          <SelectItem value="C">C</SelectItem>
-                          <SelectItem value="D">D</SelectItem>
+                          <SelectItem value="A">A</SelectItem><SelectItem value="B">B</SelectItem><SelectItem value="C">C</SelectItem><SelectItem value="D">D</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

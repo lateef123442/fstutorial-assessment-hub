@@ -33,9 +33,7 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
   const [submitted, setSubmitted] = useState(false);
   const [practicing, setPracticing] = useState(false);
 
-  useEffect(() => {
-    fetchSubjects();
-  }, []);
+  useEffect(() => { fetchSubjects(); }, []);
 
   const fetchSubjects = async () => {
     const { data } = await supabase.from("subjects").select("id, name").order("name");
@@ -46,67 +44,30 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
     const count = parseInt(questionCount);
     const allQuestions: PracticeQuestion[] = [];
 
-    // Fetch from question_bank
     let qbQuery = supabase.from("question_bank").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, subject_id, subjects(name)");
-    if (selectedSubject !== "all") {
-      qbQuery = qbQuery.eq("subject_id", selectedSubject);
-    }
+    if (selectedSubject !== "all") qbQuery = qbQuery.eq("subject_id", selectedSubject);
     const { data: qbData } = await qbQuery;
     if (qbData) {
       qbData.forEach((q: any) => {
-        allQuestions.push({
-          id: `qb-${q.id}`,
-          question_text: q.question_text,
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          source: "Question Bank",
-          subject_name: q.subjects?.name,
-        });
+        allQuestions.push({ id: `qb-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Question Bank", subject_name: q.subjects?.name });
       });
     }
 
-    // Fetch from assessment questions
     let aqQuery = supabase.from("questions").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments(subject_id, subjects(name))");
-    if (selectedSubject !== "all") {
-      aqQuery = aqQuery.eq("assessments.subject_id", selectedSubject);
-    }
+    if (selectedSubject !== "all") aqQuery = aqQuery.eq("assessments.subject_id", selectedSubject);
     const { data: aqData } = await aqQuery;
     if (aqData) {
       aqData.forEach((q: any) => {
         const subjectName = q.assessments?.subjects?.name;
-        if (selectedSubject !== "all" && !subjectName) return; // filtered out by inner join
-        allQuestions.push({
-          id: `aq-${q.id}`,
-          question_text: q.question_text,
-          option_a: q.option_a,
-          option_b: q.option_b,
-          option_c: q.option_c,
-          option_d: q.option_d,
-          correct_answer: q.correct_answer,
-          source: "Assessment",
-          subject_name: subjectName,
-        });
+        if (selectedSubject !== "all" && !subjectName) return;
+        allQuestions.push({ id: `aq-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Assessment", subject_name: subjectName });
       });
     }
 
-    if (allQuestions.length === 0) {
-      toast.error("No questions available for this subject");
-      return;
-    }
+    if (allQuestions.length === 0) { toast.error("No questions available for this subject"); return; }
 
-    // Deduplicate by question_text
     const seen = new Set<string>();
-    const unique = allQuestions.filter((q) => {
-      const key = q.question_text.trim().toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-    // Shuffle and take requested count
+    const unique = allQuestions.filter((q) => { const key = q.question_text.trim().toLowerCase(); if (seen.has(key)) return false; seen.add(key); return true; });
     const shuffled = unique.sort(() => Math.random() - 0.5).slice(0, count);
     setQuestions(shuffled);
     setSelectedAnswers({});
@@ -126,18 +87,12 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
       return;
     }
     setSubmitted(true);
+    toast.success("Answers submitted! Review your results below.");
   };
 
-  const score = submitted
-    ? questions.filter((q) => selectedAnswers[q.id] === q.correct_answer).length
-    : 0;
+  const score = submitted ? questions.filter((q) => selectedAnswers[q.id] === q.correct_answer).length : 0;
 
-  const resetPractice = () => {
-    setPracticing(false);
-    setQuestions([]);
-    setSelectedAnswers({});
-    setSubmitted(false);
-  };
+  const resetPractice = () => { setPracticing(false); setQuestions([]); setSelectedAnswers({}); setSubmitted(false); };
 
   const options = (q: PracticeQuestion) => [
     { key: "A", text: q.option_a },
@@ -160,8 +115,7 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
                   </Badge>
                 )}
                 <Button variant="outline" size="sm" onClick={resetPractice}>
-                  <RotateCcw className="w-4 h-4 mr-1" />
-                  Reset
+                  <RotateCcw className="w-4 h-4 mr-1" />Reset
                 </Button>
               </div>
             </div>
@@ -179,9 +133,7 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
                     {q.question_text}
                   </p>
                   <div className="flex gap-1 flex-shrink-0">
-                    {q.subject_name && (
-                      <Badge variant="outline" className="text-xs whitespace-nowrap">{q.subject_name}</Badge>
-                    )}
+                    {q.subject_name && <Badge variant="outline" className="text-xs whitespace-nowrap">{q.subject_name}</Badge>}
                     <Badge variant="secondary" className="text-xs whitespace-nowrap">{q.source}</Badge>
                   </div>
                 </div>
@@ -197,29 +149,16 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
                         className += "opacity-50";
                       }
                     } else {
-                      className += selected === opt.key
-                        ? "border-primary bg-primary/10"
-                        : "hover:border-primary/50";
+                      className += selected === opt.key ? "border-primary bg-primary/10" : "hover:border-primary/50";
                     }
 
                     return (
-                      <button
-                        key={opt.key}
-                        className={className}
-                        onClick={() => handleSelectAnswer(q.id, opt.key)}
-                        disabled={submitted}
-                      >
+                      <button key={opt.key} className={className} onClick={() => handleSelectAnswer(q.id, opt.key)} disabled={submitted}>
                         <span className="flex items-center gap-2">
-                          <span className="font-bold text-xs w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0">
-                            {opt.key}
-                          </span>
+                          <span className="font-bold text-xs w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0">{opt.key}</span>
                           <span>{opt.text}</span>
-                          {submitted && opt.key === q.correct_answer && (
-                            <CheckCircle className="w-4 h-4 text-green-600 ml-auto flex-shrink-0" />
-                          )}
-                          {submitted && opt.key === selected && opt.key !== q.correct_answer && (
-                            <XCircle className="w-4 h-4 text-red-600 ml-auto flex-shrink-0" />
-                          )}
+                          {submitted && opt.key === q.correct_answer && <CheckCircle className="w-4 h-4 text-green-600 ml-auto flex-shrink-0" />}
+                          {submitted && opt.key === selected && opt.key !== q.correct_answer && <XCircle className="w-4 h-4 text-red-600 ml-auto flex-shrink-0" />}
                         </span>
                       </button>
                     );
@@ -237,8 +176,7 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
             </Button>
           ) : (
             <Button onClick={resetPractice} className="flex-1" size="lg">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Practice Again
+              <RotateCcw className="w-4 h-4 mr-2" />Practice Again
             </Button>
           )}
         </div>
@@ -249,13 +187,8 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shuffle className="w-5 h-5" />
-          Practice Questions
-        </CardTitle>
-        <CardDescription>
-          Test yourself with random questions from the question bank and past assessments
-        </CardDescription>
+        <CardTitle className="flex items-center gap-2"><Shuffle className="w-5 h-5" />Practice Questions</CardTitle>
+        <CardDescription>Test yourself with random questions from the question bank and past assessments. Answer all questions and submit to see your score.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid md:grid-cols-2 gap-4">
@@ -265,9 +198,7 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Subjects</SelectItem>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
+                {subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
@@ -276,17 +207,12 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
             <Select value={questionCount} onValueChange={setQuestionCount}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["5", "10", "15", "20", "30", "50"].map((n) => (
-                  <SelectItem key={n} value={n}>{n} questions</SelectItem>
-                ))}
+                {["5", "10", "15", "20", "30", "50"].map((n) => (<SelectItem key={n} value={n}>{n} questions</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
         </div>
-        <Button onClick={startPractice}>
-          <Shuffle className="w-4 h-4 mr-2" />
-          Start Practice
-        </Button>
+        <Button onClick={startPractice}><Shuffle className="w-4 h-4 mr-2" />Start Practice</Button>
       </CardContent>
     </Card>
   );
