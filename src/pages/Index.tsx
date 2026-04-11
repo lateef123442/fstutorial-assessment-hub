@@ -4,580 +4,925 @@ import { supabase } from "@/integrations/supabase/client";
 
 const PORTFOLIO_URL = "https://ahmed-portfolio-nine-sable.vercel.app/";
 
-const Index = () => {
-  const navigate = useNavigate();
-  const cnt1Ref = useRef<HTMLSpanElement>(null);
-  const cnt2Ref = useRef<HTMLSpanElement>(null);
-  const cnt3Ref = useRef<HTMLSpanElement>(null);
-
+/* ─── tiny hook: count-up animation ─── */
+function useCountUp(
+  ref: React.RefObject<HTMLSpanElement>,
+  target: number,
+  suffix: string,
+  duration: number,
+  delay = 0
+) {
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) navigate("/dashboard");
-    };
-    checkAuth();
-  }, [navigate]);
-
-  useEffect(() => {
-    const els = document.querySelectorAll(".pn-anim");
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("pn-visible"); }),
-      { threshold: 0.08 }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const animCount = (el: HTMLSpanElement | null, target: number, suffix: string, duration: number) => {
+    const t = setTimeout(() => {
+      const el = ref.current;
       if (!el) return;
       const start = performance.now();
-      const step = (now: number) => {
+      const tick = (now: number) => {
         const p = Math.min((now - start) / duration, 1);
-        const ease = 1 - Math.pow(1 - p, 3);
-        el.textContent = Math.round(ease * target) + suffix;
-        if (p < 1) requestAnimationFrame(step);
+        el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target) + suffix;
+        if (p < 1) requestAnimationFrame(tick);
       };
-      requestAnimationFrame(step);
-    };
-    const t = setTimeout(() => {
-      animCount(cnt1Ref.current, 1200, "+", 1800);
-      animCount(cnt2Ref.current, 8400, "+", 2000);
-      animCount(cnt3Ref.current, 94, "%", 1600);
-    }, 800);
+      requestAnimationFrame(tick);
+    }, delay);
     return () => clearTimeout(t);
   }, []);
+}
 
-  const toggleMenu = () => {
-    const m = document.getElementById("pn-mob");
-    if (m) m.classList.toggle("open");
+/* ─── tiny hook: intersection-reveal ─── */
+function useReveal() {
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-visible");
+            io.unobserve(e.target);
+          }
+        }),
+      { threshold: 0.07, rootMargin: "0px 0px -40px 0px" }
+    );
+    document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+}
+
+/* ─── static data ─── */
+const FEATURES = [
+  {
+    accent: "green",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="2" width="7" height="7" rx="2" fill="currentColor" />
+        <rect x="11" y="2" width="7" height="7" rx="2" fill="currentColor" opacity=".45" />
+        <rect x="2" y="11" width="7" height="7" rx="2" fill="currentColor" opacity=".45" />
+        <rect x="11" y="11" width="7" height="7" rx="2" fill="currentColor" opacity=".2" />
+      </svg>
+    ),
+    title: "Comprehensive assessments",
+    desc: "MCQs, timed tests, and instant auto-grading across every physiotherapy module.",
+  },
+  {
+    accent: "blue",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M10 6v4.5l2.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+    title: "Timed CBT environment",
+    desc: "Real exam simulation with countdown timers, tab-violation detection, and auto-submit.",
+  },
+  {
+    accent: "purple",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 14l4-4 3 3 4-5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.2" />
+      </svg>
+    ),
+    title: "Deep analytics",
+    desc: "Track scores, identify weak areas, and monitor improvement across every session.",
+  },
+  {
+    accent: "amber",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2l2.2 5H17l-3.9 3 1.4 5L10 12.5 5.5 15l1.4-5L3 7h4.8L10 2z" fill="currentColor" opacity=".85" />
+      </svg>
+    ),
+    title: "Instant results",
+    desc: "Server-side scoring delivers your result the moment you submit — zero delay.",
+  },
+] as const;
+
+const STEPS = [
+  { n: "01", title: "Register & get assigned", text: "An admin creates your account and assigns you to the right subjects and cohorts." },
+  { n: "02", title: "Receive your assessment", text: "Your teacher publishes a timed test. Access it directly from your student dashboard." },
+  { n: "03", title: "Take the CBT exam", text: "Navigate questions JAMB-style, manage your time, and submit with confidence." },
+  { n: "04", title: "Get results instantly", text: "Scores are calculated server-side the moment you submit — no waiting, ever." },
+] as const;
+
+const ROLES = [
+  { initial: "A", accent: "green", title: "Administrators", desc: "Manage teachers, students, subjects, and view institution-wide performance analytics." },
+  { initial: "T", accent: "blue", title: "Teachers", desc: "Create assessments, manage question banks, and track per-cohort performance." },
+  { initial: "S", accent: "amber", title: "Students", desc: "Take timed exams, view past results, and track your academic progress over time." },
+] as const;
+
+/* ─────────────────────────── Component ─────────────────────────── */
+const Index = () => {
+  const navigate = useNavigate();
+  const cnt1 = useRef<HTMLSpanElement>(null);
+  const cnt2 = useRef<HTMLSpanElement>(null);
+  const cnt3 = useRef<HTMLSpanElement>(null);
+
+  /* auth check */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate("/dashboard");
+    });
+  }, [navigate]);
+
+  useReveal();
+  useCountUp(cnt1, 1200, "+", 1800, 900);
+  useCountUp(cnt2, 8400, "+", 2000, 900);
+  useCountUp(cnt3, 94, "%", 1600, 900);
+
+  const openMenu = () => {
+    const el = document.getElementById("mob-menu");
+    el?.setAttribute("data-open", el.getAttribute("data-open") === "true" ? "false" : "true");
   };
 
   return (
-    <div className="pn-root">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-        :root{
-          --g:#0fffa0;--gd:#0dd980;--gg:rgba(15,255,160,0.18);--gs:rgba(15,255,160,0.07);
-          --bl:#3d7eff;--pu:#9b5de5;--am:#ffb347;
-          --bg:#030b15;--bg2:#061220;--sf:rgba(255,255,255,0.04);
-          --bo:rgba(255,255,255,0.08);--bog:rgba(15,255,160,0.22);
-          --tx:#ffffff;--txm:rgba(255,255,255,0.45);--txh:rgba(255,255,255,0.22);
-          --fd:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
-          --rsm:10px;--rmd:16px;--rlg:24px;--rxl:32px;
-        }
-        .pn-root{font-family:var(--fb);background:var(--bg);color:var(--tx);overflow-x:hidden;min-height:100vh;}
+    <div className="pn">
+      <style>{CSS}</style>
 
-        /* MARQUEE */
-        .pn-strip{background:var(--g);padding:9px 0;overflow:hidden;white-space:nowrap;}
-        .pn-strip-inner{display:inline-flex;animation:marquee 30s linear infinite;}
-        .pn-strip-item{display:inline-flex;align-items:center;gap:10px;font-family:var(--fd);font-size:11px;font-weight:700;color:#03120d;letter-spacing:1.5px;text-transform:uppercase;padding:0 28px;}
-        .pn-strip-dot{width:4px;height:4px;border-radius:50%;background:#03120d;opacity:0.35;flex-shrink:0;}
-        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-
-        /* NAV */
-        .pn-nav{
-          display:flex;align-items:center;justify-content:space-between;
-          padding:16px 48px;border-bottom:0.5px solid var(--bo);
-          position:sticky;top:0;z-index:200;
-          background:rgba(3,11,21,0.92);backdrop-filter:blur(20px) saturate(180%);
-          -webkit-backdrop-filter:blur(20px) saturate(180%);
-        }
-        .pn-logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
-        .pn-logo-mark{
-          width:38px;height:38px;border-radius:11px;flex-shrink:0;
-          background:var(--g);display:flex;align-items:center;justify-content:center;
-          position:relative;overflow:hidden;
-        }
-        .pn-logo-mark::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.28) 0%,transparent 60%);}
-        .pn-logo-name{font-family:var(--fd);font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.4px;line-height:1;}
-        .pn-logo-sub{font-size:9px;color:var(--g);letter-spacing:2.5px;text-transform:uppercase;font-weight:500;}
-        .pn-nav-links{display:flex;gap:32px;}
-        .pn-nav-links a{font-size:13px;font-weight:500;color:var(--txm);text-decoration:none;transition:color .2s;letter-spacing:0.2px;}
-        .pn-nav-links a:hover{color:var(--g);}
-        .pn-nav-right{display:flex;align-items:center;gap:12px;}
-        .pn-nav-wf{font-size:11px;color:var(--txh);text-decoration:none;transition:color .2s;white-space:nowrap;letter-spacing:0.3px;}
-        .pn-nav-wf span{color:var(--g);font-weight:700;}
-        .pn-nav-wf:hover{color:var(--txm);}
-        .pn-nav-btn{
-          background:var(--g);color:#03120d;border:none;border-radius:var(--rsm);
-          padding:9px 22px;font-family:var(--fd);font-size:13px;font-weight:700;
-          cursor:pointer;transition:all .2s;white-space:nowrap;
-        }
-        .pn-nav-btn:hover{background:#25ffb0;transform:translateY(-1px);box-shadow:0 8px 24px rgba(15,255,160,0.3);}
-        .pn-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;background:none;border:none;}
-        .pn-hamburger span{display:block;width:22px;height:1.5px;background:var(--tx);border-radius:2px;transition:all .3s;}
-        .pn-mobile-menu{
-          display:none;position:absolute;top:100%;left:0;right:0;
-          background:rgba(3,11,21,0.98);backdrop-filter:blur(24px);
-          border-bottom:0.5px solid var(--bo);padding:20px 24px;
-          flex-direction:column;gap:4px;z-index:199;
-        }
-        .pn-mobile-menu.open{display:flex;}
-        .pn-mobile-menu a{font-size:15px;color:var(--txm);text-decoration:none;padding:12px 0;border-bottom:0.5px solid var(--bo);}
-        .pn-mobile-menu a:last-of-type{border-bottom:none;}
-        .pn-mobile-menu a:hover{color:var(--g);}
-        .pn-mob-btn{margin-top:12px;width:100%;justify-content:center;}
-
-        /* HERO */
-        .pn-hero{
-          position:relative;overflow:hidden;
-          padding:100px 48px 80px;min-height:640px;
-          display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
-        }
-        .pn-bg-grid{
-          position:absolute;inset:0;pointer-events:none;
-          background-image:linear-gradient(var(--bo) 1px,transparent 1px),linear-gradient(90deg,var(--bo) 1px,transparent 1px);
-          background-size:52px 52px;
-          mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 40%,transparent 100%);
-          -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 40%,transparent 100%);
-        }
-        .pn-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(90px);opacity:0.2;animation:orbDrift 10s ease-in-out infinite;}
-        .pn-orb1{width:500px;height:500px;background:var(--g);top:-180px;left:-140px;animation-delay:0s;}
-        .pn-orb2{width:380px;height:380px;background:var(--bl);top:-80px;right:-100px;animation-delay:-4s;}
-        .pn-orb3{width:300px;height:300px;background:var(--pu);bottom:-80px;left:35%;animation-delay:-7s;}
-        @keyframes orbDrift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(24px,-18px) scale(1.06)}66%{transform:translate(-18px,14px) scale(0.96)}}
-        .pn-hero-badge{
-          display:inline-flex;align-items:center;gap:8px;
-          border:0.5px solid var(--bog);background:var(--gs);
-          color:var(--g);border-radius:100px;padding:6px 16px;
-          font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
-          margin-bottom:28px;position:relative;z-index:2;
-          animation:heroIn .6s ease both;
-        }
-        .pn-bdot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:blink 2s ease-in-out infinite;}
-        @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.5)}}
-        .pn-hero-h1{
-          font-family:var(--fd);font-size:clamp(38px,7vw,76px);font-weight:800;
-          line-height:1.05;letter-spacing:-2.5px;
-          position:relative;z-index:2;max-width:900px;margin:0 auto;
-          animation:heroIn .7s .1s ease both;
-        }
-        .pn-hero-h1 em{
-          font-style:normal;
-          background:linear-gradient(120deg,var(--g) 0%,#5ef5c8 50%,#a8ffe4 100%);
-          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-        }
-        .pn-outline{-webkit-text-stroke:1.5px rgba(255,255,255,0.22);-webkit-text-fill-color:transparent;}
-        .pn-hero-sub{
-          margin-top:24px;font-size:17px;font-weight:300;
-          color:var(--txm);max-width:540px;line-height:1.75;
-          position:relative;z-index:2;animation:heroIn .7s .2s ease both;
-        }
-        .pn-hero-cta{
-          margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
-          position:relative;z-index:2;animation:heroIn .7s .3s ease both;
-        }
-        .pn-btn-primary{
-          background:var(--g);color:#03120d;border:none;border-radius:var(--rsm);
-          padding:14px 30px;font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:0.2px;
-          cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:10px;
-        }
-        .pn-btn-primary:hover{background:#25ffb0;transform:translateY(-3px);box-shadow:0 16px 40px rgba(15,255,160,0.35);}
-        .pn-btn-primary:active{transform:translateY(-1px);}
-        .pn-btn-ghost{
-          background:transparent;color:rgba(255,255,255,0.8);
-          border:0.5px solid rgba(255,255,255,0.18);border-radius:var(--rsm);
-          padding:14px 30px;font-size:14px;font-weight:400;
-          cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:8px;text-decoration:none;
-        }
-        .pn-btn-ghost:hover{border-color:var(--bog);color:var(--g);transform:translateY(-3px);}
-
-        /* STATS */
-        .pn-stats{
-          display:flex;margin-top:56px;position:relative;z-index:2;
-          animation:heroIn .7s .45s ease both;
-          border:0.5px solid var(--bo);border-radius:var(--rlg);
-          background:rgba(255,255,255,0.03);backdrop-filter:blur(12px);
-          max-width:600px;width:100%;overflow:hidden;
-        }
-        .pn-stat{flex:1;padding:20px 24px;text-align:center;border-right:0.5px solid var(--bo);position:relative;}
-        .pn-stat::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:2px;background:var(--g);transition:width .4s ease;border-radius:2px;}
-        .pn-stat:hover::after{width:60%;}
-        .pn-stat:last-child{border-right:none;}
-        .pn-stat-num{font-family:var(--fd);font-size:26px;font-weight:800;color:var(--g);letter-spacing:-1.5px;line-height:1;}
-        .pn-stat-label{font-size:11px;color:var(--txh);margin-top:4px;letter-spacing:0.3px;}
-
-        /* hero credit */
-        .pn-hero-credit{
-          margin-top:32px;position:relative;z-index:2;animation:heroIn .7s .55s ease both;
-          font-size:11px;color:var(--txh);display:flex;align-items:center;gap:6px;
-        }
-        .pn-hero-credit a{color:var(--g);font-weight:600;text-decoration:none;}
-        .pn-hero-credit a:hover{text-decoration:underline;}
-        @keyframes heroIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
-
-        /* SECTIONS */
-        .pn-section{padding:96px 48px;}
-        .pn-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-bottom:14px;}
-        .pn-eyebrow::before{content:'';display:inline-block;width:20px;height:1.5px;background:var(--g);}
-        .pn-h2{font-family:var(--fd);font-size:clamp(28px,4.5vw,46px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
-        .pn-lead{font-size:16px;color:var(--txm);line-height:1.75;max-width:500px;}
-        .pn-divider{height:0.5px;background:linear-gradient(90deg,transparent 0%,var(--bo) 20%,var(--bo) 80%,transparent 100%);margin:0 48px;}
-
-        /* FEATURES */
-        .pn-feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:52px;}
-        .pn-feat-card{
-          background:var(--sf);border:0.5px solid var(--bo);border-radius:var(--rmd);padding:28px 22px;
-          transition:all .35s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden;cursor:default;
-        }
-        .pn-feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:0;transition:opacity .35s;}
-        .pn-feat-card:hover{transform:translateY(-6px);border-color:var(--bog);background:rgba(15,255,160,0.04);}
-        .pn-feat-card:hover::before{opacity:1;}
-        .pn-feat-ico{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
-        .ic-g{background:rgba(15,255,160,0.12);}.ic-b{background:rgba(61,126,255,0.12);}.ic-p{background:rgba(155,93,229,0.12);}.ic-a{background:rgba(255,179,71,0.12);}
-        .pn-feat-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:8px;}
-        .pn-feat-desc{font-size:12.5px;color:var(--txm);line-height:1.65;}
-
-        /* HOW IT WORKS */
-        .pn-hiw{display:flex;gap:80px;flex-wrap:wrap;align-items:flex-start;max-width:1080px;margin:0 auto;}
-        .pn-hiw-l{flex:1;min-width:220px;}
-        .pn-hiw-r{flex:1.5;min-width:280px;margin-top:8px;}
-        .pn-steps{display:flex;flex-direction:column;}
-        .pn-step{display:flex;gap:20px;padding-bottom:36px;position:relative;align-items:flex-start;}
-        .pn-step:not(:last-child)::after{content:'';position:absolute;left:19px;top:42px;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(15,255,160,0.35) 0%,transparent 100%);}
-        .pn-step-n{
-          width:40px;height:40px;border-radius:50%;flex-shrink:0;
-          background:rgba(15,255,160,0.1);border:0.5px solid rgba(15,255,160,0.3);
-          display:flex;align-items:center;justify-content:center;
-          font-family:var(--fd);font-size:14px;font-weight:800;color:var(--g);transition:all .3s;
-        }
-        .pn-step:hover .pn-step-n{background:rgba(15,255,160,0.2);border-color:var(--g);}
-        .pn-step-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:5px;}
-        .pn-step-text{font-size:13px;color:var(--txm);line-height:1.65;}
-
-        /* ROLES */
-        .pn-roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;margin:52px auto 0;}
-        .pn-role-card{
-          border-radius:var(--rmd);padding:36px 28px;text-align:center;
-          border:0.5px solid var(--bo);background:var(--sf);
-          transition:all .35s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden;
-        }
-        .pn-role-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(15,255,160,0.06) 0%,transparent 70%);opacity:0;transition:opacity .35s;}
-        .pn-role-card:hover{transform:translateY(-6px);border-color:var(--bog);}
-        .pn-role-card:hover::after{opacity:1;}
-        .pn-role-av{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:24px;font-weight:800;margin:0 auto 18px;transition:transform .3s;}
-        .pn-role-card:hover .pn-role-av{transform:scale(1.1);}
-        .av-g{background:rgba(15,255,160,0.12);color:var(--g);}
-        .av-b{background:rgba(61,126,255,0.12);color:#6e9fff;}
-        .av-a{background:rgba(255,179,71,0.12);color:var(--am);}
-        .pn-role-title{font-family:var(--fd);font-size:16px;font-weight:700;margin-bottom:8px;}
-        .pn-role-desc{font-size:13px;color:var(--txm);line-height:1.65;}
-
-        /* WEB FORGE BAR */
-        .pn-built-bar{
-          border-top:0.5px solid var(--bo);border-bottom:0.5px solid var(--bo);
-          padding:36px 48px;display:flex;align-items:center;justify-content:center;
-          gap:24px;flex-wrap:wrap;text-align:center;
-        }
-        .pn-built-text{font-size:13px;color:var(--txh);}
-        .pn-built-card{
-          display:inline-flex;align-items:center;gap:12px;
-          background:var(--sf);border:0.5px solid var(--bo);
-          border-radius:100px;padding:10px 20px;text-decoration:none;transition:all .25s;
-        }
-        .pn-built-card:hover{border-color:var(--bog);background:var(--gs);transform:translateY(-2px);}
-        .pn-wf-badge{background:var(--g);color:#03120d;font-family:var(--fd);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:100px;}
-        .pn-wf-name{font-size:13px;font-weight:500;color:var(--tx);}
-        .pn-wf-sub{font-size:11px;color:var(--txm);}
-
-        /* CTA */
-        .pn-cta-wrap{padding:0 48px 80px;}
-        .pn-cta-inner{
-          border-radius:var(--rxl);padding:72px 60px;text-align:center;
-          position:relative;overflow:hidden;
-          background:linear-gradient(135deg,#0a2e1f 0%,#061520 40%,#0b1235 100%);
-          border:0.5px solid var(--bog);
-        }
-        .pn-cta-glow{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px);}
-        .cg1{width:360px;height:360px;background:var(--g);opacity:.13;top:-120px;left:-80px;}
-        .cg2{width:260px;height:260px;background:var(--bl);opacity:.13;bottom:-80px;right:8%;}
-        .cg3{width:200px;height:200px;background:var(--pu);opacity:.11;top:-40px;right:30%;}
-        .pn-cta-h2{font-family:var(--fd);font-size:clamp(26px,4.5vw,44px);font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;position:relative;z-index:2;}
-        .pn-cta-sub{font-size:15px;color:var(--txm);margin-bottom:36px;position:relative;z-index:2;}
-        .pn-cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:2;}
-
-        /* FOOTER */
-        .pn-footer{padding:28px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
-        .pn-footer-left{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
-        .pn-footer-copy{font-size:12px;color:var(--txh);}
-        .pn-footer-by{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txh);}
-        .pn-footer-by a{color:var(--g);font-weight:600;text-decoration:none;}
-        .pn-footer-by a:hover{text-decoration:underline;}
-        .pn-footer-links{display:flex;gap:20px;}
-        .pn-footer-links a{font-size:12px;color:var(--txh);text-decoration:none;transition:color .2s;}
-        .pn-footer-links a:hover{color:var(--g);}
-
-        /* ANIM */
-        .pn-anim{opacity:0;transform:translateY(28px);transition:opacity .65s ease,transform .65s ease;}
-        .pn-anim.pn-visible{opacity:1;transform:none;}
-        .pn-d1{transition-delay:.1s}.pn-d2{transition-delay:.2s}.pn-d3{transition-delay:.3s}.pn-d4{transition-delay:.4s}
-
-        /* RESPONSIVE */
-        @media(max-width:1024px){
-          .pn-feat-grid{grid-template-columns:repeat(2,1fr);}
-          .pn-nav-links{display:none;}
-          .pn-nav-wf{display:none;}
-        }
-        @media(max-width:768px){
-          .pn-nav{padding:14px 20px;}
-          .pn-hamburger{display:flex;}
-          .pn-nav-btn{display:none;}
-          .pn-hero{padding:60px 20px 48px;min-height:auto;}
-          .pn-hero-h1{letter-spacing:-1.5px;}
-          .pn-hero-sub{font-size:15px;}
-          .pn-stats{flex-direction:column;border-radius:var(--rmd);}
-          .pn-stat{border-right:none;border-bottom:0.5px solid var(--bo);padding:16px 20px;}
-          .pn-stat:last-child{border-bottom:none;}
-          .pn-section{padding:60px 20px;}
-          .pn-feat-grid{grid-template-columns:1fr;gap:12px;}
-          .pn-hiw{gap:40px;}
-          .pn-roles-grid{grid-template-columns:1fr;max-width:420px;}
-          .pn-cta-wrap{padding:0 20px 60px;}
-          .pn-cta-inner{padding:48px 24px;border-radius:var(--rlg);}
-          .pn-built-bar{padding:28px 20px;flex-direction:column;}
-          .pn-footer{padding:24px 20px;flex-direction:column;align-items:flex-start;gap:12px;}
-          .pn-divider{margin:0 20px;}
-          .pn-hero-badge{font-size:10px;padding:5px 12px;}
-        }
-        @media(max-width:480px){
-          .pn-hero-h1{letter-spacing:-1px;}
-          .pn-hero-cta{gap:10px;}
-          .pn-btn-primary,.pn-btn-ghost{width:100%;justify-content:center;}
-          .pn-stats{max-width:100%;}
-          .pn-cta-btns .pn-btn-primary,.pn-cta-btns .pn-btn-ghost{width:100%;justify-content:center;}
-          .pn-roles-grid{max-width:100%;}
-          .pn-feat-grid{grid-template-columns:1fr;}
-        }
-      `}</style>
-
-      {/* MARQUEE STRIP */}
-      <div className="pn-strip" aria-hidden="true">
-        <div className="pn-strip-inner">
-          {[0, 1].map((gi) => (
-            <span key={gi}>
-              {["Physiotherapy CBT","Instant Results","JAMB-Style Navigator","Timed Assessments","Built for Students","Physio Nexus","Track Your Progress","Ace Your Exams"].map((t, i) => (
-                <span key={i} className="pn-strip-item">{t}<span className="pn-strip-dot" /></span>
+      {/* ── ticker ── */}
+      <div className="ticker" aria-hidden="true">
+        <div className="ticker-track">
+          {[0, 1].map((g) => (
+            <span className="ticker-row" key={g}>
+              {["Physiotherapy CBT", "Instant Results", "JAMB-Style Navigator", "Timed Assessments", "Built for Students", "Deep Analytics", "Track Progress", "Ace Your Exams"].map((t, i) => (
+                <span className="ticker-item" key={i}>
+                  <span className="ticker-dot" />{t}
+                </span>
               ))}
             </span>
           ))}
         </div>
       </div>
 
-      {/* NAV */}
-      <nav className="pn-nav">
-        <a className="pn-logo" href="#">
-          <div className="pn-logo-mark">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2C10 2 5 5 5 10C5 13.866 7.134 16 10 16C12.866 16 15 13.866 15 10C15 5 10 2 10 2Z" fill="#03120d" opacity="0.9"/>
-              <circle cx="10" cy="10" r="2.5" fill="#03120d"/>
-              <path d="M10 13v3M7 15l3-2 3 2" stroke="#03120d" strokeWidth="1.4" strokeLinecap="round"/>
+      {/* ── nav ── */}
+      <header className="nav">
+        <a className="logo" href="#" aria-label="Physio Nexus">
+          <div className="logo-mark">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 1.5C9 1.5 4 4.5 4 9c0 3.314 2.239 5 5 5s5-1.686 5-5c0-4.5-5-7.5-5-7.5Z" fill="#022010" opacity=".9"/>
+              <circle cx="9" cy="9" r="2" fill="#022010"/>
+              <path d="M9 11.5v3M6.5 13.5l2.5-1.5 2.5 1.5" stroke="#022010" strokeWidth="1.3" strokeLinecap="round"/>
             </svg>
           </div>
-          <div>
-            <div className="pn-logo-name">Physio Nexus</div>
-            <div className="pn-logo-sub">CBT Platform</div>
+          <div className="logo-text">
+            <span className="logo-name">Physio Nexus</span>
+            <span className="logo-sub">CBT Platform</span>
           </div>
         </a>
-        <div className="pn-nav-links">
+
+        <nav className="nav-links" aria-label="Primary">
           <a href="#features">Features</a>
           <a href="#how-it-works">How it works</a>
           <a href="#roles">Roles</a>
-        </div>
-        <div className="pn-nav-right">
-          <a className="pn-nav-wf" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
-            by <span>Web Forge</span>
+        </nav>
+
+        <div className="nav-end">
+          <a className="nav-by" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+            by <strong>Web Forge</strong>
           </a>
-          <button className="pn-nav-btn" onClick={() => navigate("/login")}>Login →</button>
-          <button className="pn-hamburger" aria-label="Menu" onClick={toggleMenu}>
+          <button className="btn-primary nav-cta" onClick={() => navigate("/login")}>
+            Login <ArrowRight />
+          </button>
+          <button className="hamburger" aria-label="Toggle menu" onClick={openMenu}>
             <span /><span /><span />
           </button>
         </div>
-        <div className="pn-mobile-menu" id="pn-mob">
-          <a href="#features" onClick={toggleMenu}>Features</a>
-          <a href="#how-it-works" onClick={toggleMenu}>How it works</a>
-          <a href="#roles" onClick={toggleMenu}>Roles</a>
-          <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer" style={{ color: "var(--g)" }}>Built by Web Forge · Ahmed Abdullateef ↗</a>
-          <button className="pn-btn-primary pn-mob-btn" onClick={() => navigate("/login")}>Login to Physio Nexus →</button>
-        </div>
-      </nav>
 
-      {/* HERO */}
-      <section className="pn-hero">
-        <div className="pn-orb pn-orb1" />
-        <div className="pn-orb pn-orb2" />
-        <div className="pn-orb pn-orb3" />
-        <div className="pn-bg-grid" />
-        <div className="pn-hero-badge"><span className="pn-bdot" />Built for physiotherapy students</div>
-        <h1 className="pn-hero-h1">
-          <span className="pn-outline">Master</span> every exam<br />with <em>Physio Nexus</em>
-        </h1>
-        <p className="pn-hero-sub">
-          The advanced CBT platform built for physio students — timed tests, JAMB-style navigation, instant results, and deep analytics.
-        </p>
-        <div className="pn-hero-cta">
-          <button className="pn-btn-primary" onClick={() => navigate("/login")}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            Start for free
-          </button>
-          <button className="pn-btn-ghost" onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M7 4.5v3l2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
-            How it works
+        {/* mobile menu */}
+        <div className="mob-menu" id="mob-menu" data-open="false">
+          <a href="#features" onClick={openMenu}>Features</a>
+          <a href="#how-it-works" onClick={openMenu}>How it works</a>
+          <a href="#roles" onClick={openMenu}>Roles</a>
+          <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer" className="mob-portfolio">
+            Built by Web Forge · Ahmed Abdullateef ↗
+          </a>
+          <button className="btn-primary mob-login" onClick={() => navigate("/login")}>
+            Login to Physio Nexus <ArrowRight />
           </button>
         </div>
-        <div className="pn-stats">
-          <div className="pn-stat">
-            <div className="pn-stat-num"><span ref={cnt1Ref}>0+</span></div>
-            <div className="pn-stat-label">Students enrolled</div>
-          </div>
-          <div className="pn-stat">
-            <div className="pn-stat-num"><span ref={cnt2Ref}>0+</span></div>
-            <div className="pn-stat-label">Assessments taken</div>
-          </div>
-          <div className="pn-stat">
-            <div className="pn-stat-num"><span ref={cnt3Ref}>0%</span></div>
-            <div className="pn-stat-label">Pass rate</div>
-          </div>
-        </div>
-        <div className="pn-hero-credit">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.5 3.3H11L8.3 6.5l1 3.2L6 8 2.7 9.7l1-3.2L1 4.3h3.5L6 1z" fill="currentColor" opacity="0.6"/></svg>
-          Crafted by&nbsp;<a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">Web Forge · Ahmed Abdullateef</a>
-        </div>
-      </section>
+      </header>
 
-      {/* FEATURES */}
-      <div className="pn-divider" />
-      <section className="pn-section" id="features">
-        <div className="pn-anim" style={{ textAlign: "center" }}>
-          <div className="pn-eyebrow">Why choose us</div>
-          <h2 className="pn-h2">Everything you need to excel</h2>
-          <p className="pn-lead" style={{ margin: "0 auto" }}>
-            Purpose-built for physio students — from anatomy to biomechanics, every module covered.
+      {/* ── hero ── */}
+      <section className="hero">
+        {/* decorative grid */}
+        <div className="hero-grid" aria-hidden="true" />
+        {/* orbs */}
+        <div className="orb orb-a" aria-hidden="true" />
+        <div className="orb orb-b" aria-hidden="true" />
+        <div className="orb orb-c" aria-hidden="true" />
+
+        <div className="hero-inner">
+          <div className="hero-badge">
+            <span className="badge-dot" />
+            Built for physiotherapy students
+          </div>
+
+          <h1 className="hero-h1">
+            <span className="h1-outline">Master</span> every exam
+            <br />with <em className="h1-em">Physio Nexus</em>
+          </h1>
+
+          <p className="hero-sub">
+            The advanced CBT platform built for physio students — timed tests, JAMB-style navigation, instant results, and deep analytics.
+          </p>
+
+          <div className="hero-actions">
+            <button className="btn-primary btn-lg" onClick={() => navigate("/login")}>
+              <ArrowRight /> Start for free
+            </button>
+            <button
+              className="btn-ghost btn-lg"
+              onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+            >
+              <ClockIcon /> How it works
+            </button>
+          </div>
+
+          {/* stats row */}
+          <dl className="stats-row">
+            {[
+              { ref: cnt1, label: "Students enrolled" },
+              { ref: cnt2, label: "Assessments taken" },
+              { ref: cnt3, label: "Pass rate" },
+            ].map(({ ref, label }) => (
+              <div className="stat" key={label}>
+                <dt className="stat-label">{label}</dt>
+                <dd className="stat-value"><span ref={ref}>0</span></dd>
+              </div>
+            ))}
+          </dl>
+
+          <p className="hero-credit">
+            <StarIcon /> Crafted by&nbsp;
+            <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+              Web Forge · Ahmed Abdullateef
+            </a>
           </p>
         </div>
-        <div className="pn-feat-grid">
-          {[
-            { ic:"ic-g", title:"Comprehensive assessments", desc:"MCQs, timed tests, and instant auto-grading across every physio module.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#0fffa0"/><rect x="12" y="3" width="7" height="7" rx="2" fill="#0fffa0" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="#0fffa0" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="#0fffa0" opacity=".25"/></svg> },
-            { ic:"ic-b", title:"Timed CBT environment", desc:"Real exam simulation with countdown timers, tab-violation detection, and auto-submit.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6e9fff" strokeWidth="1.5"/><path d="M11 7v4l3 2" stroke="#6e9fff" strokeWidth="1.5" strokeLinecap="round"/></svg> },
-            { ic:"ic-p", title:"Deep analytics", desc:"Track scores, spot weak areas, and monitor improvement across every session.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 16l4-4 3 3 4-5 3 3" stroke="#c084fc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="3" width="16" height="16" rx="3" stroke="#c084fc" strokeWidth="1.2"/></svg> },
-            { ic:"ic-a", title:"Instant results & email", desc:"Server-side scoring delivers your result the moment you submit — zero delay.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3l2.5 5.5H19l-4.5 3.5 1.5 5.5L11 14l-5 3.5 1.5-5.5L3 8.5h5.5L11 3z" fill="#ffb347" opacity="0.85"/></svg> },
-          ].map((f, i) => (
-            <div key={f.title} className={`pn-feat-card pn-anim pn-d${i + 1}`}>
-              <div className={`pn-feat-ico ${f.ic}`}>{f.svg}</div>
-              <div className="pn-feat-title">{f.title}</div>
-              <div className="pn-feat-desc">{f.desc}</div>
-            </div>
-          ))}
+      </section>
+
+      {/* ── features ── */}
+      <section className="section" id="features">
+        <div className="container">
+          <div className="section-header reveal">
+            <span className="eyebrow">Why choose us</span>
+            <h2 className="h2">Everything you need to excel</h2>
+            <p className="lead">Purpose-built for physio students — from anatomy to biomechanics, every module covered.</p>
+          </div>
+
+          <div className="feat-grid">
+            {FEATURES.map((f, i) => (
+              <article key={f.title} className={`feat-card reveal stagger-${i + 1}`} data-accent={f.accent}>
+                <div className="feat-icon">{f.icon}</div>
+                <h3 className="feat-title">{f.title}</h3>
+                <p className="feat-desc">{f.desc}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <div className="pn-divider" />
-      <section className="pn-section" id="how-it-works" style={{ background: "rgba(255,255,255,0.012)" }}>
-        <div className="pn-hiw">
-          <div className="pn-hiw-l">
-            <div className="pn-anim">
-              <div className="pn-eyebrow">How it works</div>
-              <h2 className="pn-h2">Simple.<br />Fast.<br />Effective.</h2>
-              <p className="pn-lead">From registration to results in under a minute.</p>
-              <button className="pn-btn-primary" style={{ marginTop: 32 }} onClick={() => navigate("/login")}>
-                Get started
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="#03120d" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              </button>
-            </div>
+      {/* ── how it works ── */}
+      <section className="section section-alt" id="how-it-works">
+        <div className="container hiw-layout">
+          <div className="hiw-left reveal">
+            <span className="eyebrow">How it works</span>
+            <h2 className="h2">Simple.<br />Fast.<br />Effective.</h2>
+            <p className="lead">From registration to results in under a minute.</p>
+            <button className="btn-primary" style={{ marginTop: 32 }} onClick={() => navigate("/login")}>
+              Get started <ArrowRight />
+            </button>
           </div>
-          <div className="pn-hiw-r">
-            <div className="pn-steps">
-              {[
-                { title:"Register & get assigned", text:"An admin creates your account and assigns you to the right subjects and cohorts." },
-                { title:"Receive your assessment link", text:"Your teacher publishes a timed test. Access it directly from your student dashboard." },
-                { title:"Take the CBT exam", text:"Navigate questions JAMB-style, manage your time, and submit with confidence." },
-                { title:"Get your results instantly", text:"Scores are calculated server-side the moment you submit — no waiting, ever." },
-              ].map((s, i) => (
-                <div key={s.title} className={`pn-step pn-anim pn-d${i + 1}`}>
-                  <div className="pn-step-n">{i + 1}</div>
-                  <div>
-                    <div className="pn-step-title">{s.title}</div>
-                    <div className="pn-step-text">{s.text}</div>
-                  </div>
+
+          <ol className="steps" aria-label="Steps to get started">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className={`step reveal stagger-${i + 1}`}>
+                <div className="step-num" aria-hidden="true">{s.n}</div>
+                <div className="step-body">
+                  <h3 className="step-title">{s.title}</h3>
+                  <p className="step-text">{s.text}</p>
                 </div>
-              ))}
-            </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ── roles ── */}
+      <section className="section" id="roles">
+        <div className="container">
+          <div className="section-header reveal">
+            <span className="eyebrow">Platform roles</span>
+            <h2 className="h2">Built for everyone</h2>
+          </div>
+          <div className="roles-grid">
+            {ROLES.map((r, i) => (
+              <article key={r.title} className={`role-card reveal stagger-${i + 1}`} data-accent={r.accent}>
+                <div className="role-av">{r.initial}</div>
+                <h3 className="role-title">{r.title}</h3>
+                <p className="role-desc">{r.desc}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ROLES */}
-      <div className="pn-divider" />
-      <section className="pn-section" id="roles">
-        <div className="pn-anim" style={{ textAlign: "center" }}>
-          <div className="pn-eyebrow">Platform roles</div>
-          <h2 className="pn-h2">Built for everyone</h2>
-        </div>
-        <div className="pn-roles-grid">
-          {[
-            { letter:"A", av:"av-g", title:"Administrators", desc:"Manage teachers, students, subjects, and view institution-wide performance analytics." },
-            { letter:"T", av:"av-b", title:"Teachers",       desc:"Create assessments, manage question banks, and track per-cohort performance." },
-            { letter:"S", av:"av-a", title:"Students",       desc:"Take timed exams, view past results, and track your academic progress over time." },
-          ].map((r, i) => (
-            <div key={r.title} className={`pn-role-card pn-anim pn-d${i + 1}`}>
-              <div className={`pn-role-av ${r.av}`}>{r.letter}</div>
-              <div className="pn-role-title">{r.title}</div>
-              <div className="pn-role-desc">{r.desc}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* WEB FORGE BAR */}
-      <div className="pn-built-bar pn-anim">
-        <span className="pn-built-text">Designed &amp; built by</span>
-        <a className="pn-built-card" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
-          <span className="pn-wf-badge">Web Forge</span>
-          <span>
-            <div className="pn-wf-name">Ahmed Abdullateef</div>
-            <div className="pn-wf-sub">View portfolio ↗</div>
+      {/* ── by bar ── */}
+      <div className="by-bar reveal">
+        <span className="by-text">Designed &amp; built by</span>
+        <a className="by-card" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+          <span className="by-badge">Web Forge</span>
+          <span className="by-info">
+            <span className="by-name">Ahmed Abdullateef</span>
+            <span className="by-sub">View portfolio ↗</span>
           </span>
         </a>
-        <span className="pn-built-text">— Premium web experiences</span>
+        <span className="by-text">— Premium web experiences</span>
       </div>
 
-      {/* CTA */}
-      <div className="pn-cta-wrap">
-        <div className="pn-cta-inner pn-anim">
-          <div className="pn-cta-glow cg1" /><div className="pn-cta-glow cg2" /><div className="pn-cta-glow cg3" />
-          <h2 className="pn-cta-h2">Ready to transform how<br />you study physiotherapy?</h2>
-          <p className="pn-cta-sub">Join Physio Nexus today — it takes less than a minute to get started.</p>
-          <div className="pn-cta-btns">
-            <button className="pn-btn-primary" onClick={() => navigate("/login")}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              Start now — it's free
+      {/* ── cta ── */}
+      <section className="cta-section">
+        <div className="cta-inner reveal">
+          <div className="cta-glow cta-glow-a" aria-hidden="true" />
+          <div className="cta-glow cta-glow-b" aria-hidden="true" />
+          <div className="cta-glow cta-glow-c" aria-hidden="true" />
+          <h2 className="cta-h2">Ready to transform<br />how you study physiotherapy?</h2>
+          <p className="cta-sub">Join Physio Nexus today — it takes less than a minute to get started.</p>
+          <div className="cta-actions">
+            <button className="btn-primary btn-lg" onClick={() => navigate("/login")}>
+              <ArrowRight /> Start now — it's free
             </button>
-            <a className="pn-btn-ghost" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+            <a className="btn-ghost btn-lg" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
               Built by Web Forge ↗
             </a>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* FOOTER */}
-      <footer className="pn-footer">
-        <div className="pn-footer-left">
-          <span className="pn-footer-copy">© 2025 Physio Nexus. All rights reserved.</span>
-          <span className="pn-footer-by">
+      {/* ── footer ── */}
+      <footer className="footer">
+        <div className="footer-left">
+          <span className="footer-copy">© 2025 Physio Nexus. All rights reserved.</span>
+          <span className="footer-by">
             Created by&nbsp;
-            <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">Web Forge · Ahmed Abdullateef</a>
+            <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+              Web Forge · Ahmed Abdullateef
+            </a>
           </span>
         </div>
-        <div className="pn-footer-links">
+        <nav className="footer-nav" aria-label="Footer">
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
           <a href="#">Support</a>
-        </div>
+        </nav>
       </footer>
     </div>
   );
 };
+
+/* ─── Icon components ─── */
+const ArrowRight = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+    <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2"/>
+    <path d="M7 4v3.5l2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+  </svg>
+);
+const StarIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+    <path d="M5.5 1l1.3 3.2H10L7.2 6.3l1 3L5.5 7.8 2.8 9.3l1-3L1 4.2h3.2L5.5 1Z" fill="currentColor" opacity=".5"/>
+  </svg>
+);
+
+/* ─── CSS ─── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Geist:wght@300;400;500&display=swap');
+
+/* ── reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  /* palette */
+  --green:#0fffa0;--green-dim:rgba(15,255,160,.15);--green-glow:rgba(15,255,160,.08);
+  --blue:#4d8fff;--purple:#a78bfa;--amber:#fbbf24;
+  /* surface */
+  --bg:#020c14;--bg2:#061622;
+  --surface:rgba(255,255,255,.035);--surface-hover:rgba(255,255,255,.06);
+  /* border */
+  --border:rgba(255,255,255,.07);--border-strong:rgba(255,255,255,.13);--border-green:rgba(15,255,160,.25);
+  /* text */
+  --tx:#f5f5f5;--tx2:rgba(255,255,255,.5);--tx3:rgba(255,255,255,.25);
+  /* type */
+  --display:'Bricolage Grotesque',sans-serif;
+  --body:'Geist',sans-serif;
+  /* radius */
+  --r-sm:8px;--r-md:12px;--r-lg:20px;--r-xl:28px;
+  /* spacing scale */
+  --s-xs:4px;--s-sm:8px;--s-md:16px;--s-lg:24px;--s-xl:40px;--s-2xl:64px;--s-3xl:96px;
+  /* transition */
+  --ease:.3s cubic-bezier(.2,.8,.2,1);
+}
+
+.pn{
+  font-family:var(--body);
+  background:var(--bg);
+  color:var(--tx);
+  overflow-x:hidden;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ────────────────── TICKER ────────────────── */
+.ticker{
+  background:var(--green);
+  padding:8px 0;
+  overflow:hidden;
+  white-space:nowrap;
+}
+.ticker-track{
+  display:inline-flex;
+  animation:ticker-scroll 35s linear infinite;
+}
+.ticker-row{display:inline-flex;align-items:center;}
+.ticker-item{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--display);font-size:10.5px;font-weight:700;
+  color:#021a0e;letter-spacing:1.8px;text-transform:uppercase;
+  padding:0 22px;
+}
+.ticker-dot{
+  width:3px;height:3px;border-radius:50%;
+  background:#021a0e;opacity:.3;flex-shrink:0;
+}
+@keyframes ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ────────────────── NAV ────────────────── */
+.nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 48px;
+  position:sticky;top:0;z-index:200;
+  background:rgba(2,12,20,.85);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-bottom:.5px solid var(--border);
+}
+.logo{display:flex;align-items:center;gap:11px;text-decoration:none;}
+.logo-mark{
+  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  background:var(--green);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.logo-mark::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.25) 0%,transparent 55%);
+}
+.logo-name{
+  display:block;font-family:var(--display);font-size:15px;font-weight:700;
+  color:var(--tx);letter-spacing:-.3px;line-height:1.1;
+}
+.logo-sub{
+  display:block;font-size:9.5px;font-weight:500;
+  color:var(--green);letter-spacing:2px;text-transform:uppercase;
+}
+
+.nav-links{display:flex;gap:28px;}
+.nav-links a{
+  font-size:13px;font-weight:400;color:var(--tx2);
+  text-decoration:none;transition:color var(--ease);letter-spacing:.1px;
+}
+.nav-links a:hover{color:var(--tx);}
+
+.nav-end{display:flex;align-items:center;gap:10px;}
+.nav-by{
+  font-size:11.5px;color:var(--tx3);text-decoration:none;
+  transition:color var(--ease);white-space:nowrap;
+}
+.nav-by strong{color:var(--green);font-weight:600;}
+.nav-by:hover{color:var(--tx2);}
+.nav-cta{}
+
+.hamburger{
+  display:none;flex-direction:column;gap:4.5px;
+  cursor:pointer;padding:4px;background:none;border:none;
+}
+.hamburger span{
+  display:block;width:20px;height:1.5px;
+  background:var(--tx);border-radius:2px;transition:all .3s;
+}
+
+/* mobile menu */
+.mob-menu{
+  display:none;
+  position:absolute;top:100%;left:0;right:0;
+  background:rgba(2,12,20,.97);
+  backdrop-filter:blur(28px);
+  border-bottom:.5px solid var(--border);
+  padding:16px 24px 20px;
+  flex-direction:column;gap:0;
+  z-index:198;
+}
+.mob-menu[data-open="true"]{display:flex;}
+.mob-menu a{
+  font-size:14px;color:var(--tx2);text-decoration:none;
+  padding:13px 0;border-bottom:.5px solid var(--border);
+  transition:color var(--ease);
+}
+.mob-menu a:hover{color:var(--tx);}
+.mob-portfolio{color:var(--green)!important;font-weight:500;}
+.mob-login{margin-top:14px;justify-content:center;}
+
+/* ────────────────── BUTTONS ────────────────── */
+.btn-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  background:var(--green);color:#021a0e;
+  border:none;border-radius:var(--r-sm);
+  padding:10px 22px;
+  font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.1px;
+  cursor:pointer;transition:background var(--ease),transform var(--ease),box-shadow var(--ease);
+  white-space:nowrap;text-decoration:none;
+}
+.btn-primary:hover{
+  background:#2bffc0;
+  transform:translateY(-2px);
+  box-shadow:0 12px 32px rgba(15,255,160,.28);
+}
+.btn-primary:active{transform:translateY(0);box-shadow:none;}
+.btn-primary.btn-lg{padding:13px 28px;font-size:14px;}
+
+.btn-ghost{
+  display:inline-flex;align-items:center;gap:8px;
+  background:transparent;color:rgba(255,255,255,.75);
+  border:.5px solid var(--border-strong);border-radius:var(--r-sm);
+  padding:10px 22px;
+  font-size:13px;font-weight:400;
+  cursor:pointer;transition:all var(--ease);
+  white-space:nowrap;text-decoration:none;
+}
+.btn-ghost:hover{
+  border-color:var(--border-green);color:var(--green);
+  transform:translateY(-2px);background:var(--green-glow);
+}
+.btn-ghost.btn-lg{padding:13px 28px;font-size:14px;}
+
+/* ────────────────── HERO ────────────────── */
+.hero{
+  position:relative;overflow:hidden;
+  padding:108px 48px 88px;
+  display:flex;justify-content:center;
+  min-height:620px;
+  text-align:center;
+}
+.hero-grid{
+  position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 70% 65% at 50% 30%,black,transparent);
+  -webkit-mask-image:radial-gradient(ellipse 70% 65% at 50% 30%,black,transparent);
+}
+.orb{
+  position:absolute;border-radius:50%;pointer-events:none;
+  filter:blur(100px);animation:orb-float 12s ease-in-out infinite;
+}
+.orb-a{width:520px;height:520px;background:var(--green);opacity:.13;top:-220px;left:-160px;animation-delay:0s;}
+.orb-b{width:400px;height:400px;background:var(--blue);opacity:.12;top:-120px;right:-120px;animation-delay:-5s;}
+.orb-c{width:320px;height:320px;background:var(--purple);opacity:.10;bottom:-100px;left:38%;animation-delay:-9s;}
+@keyframes orb-float{
+  0%,100%{transform:translate(0,0) scale(1)}
+  40%{transform:translate(20px,-16px) scale(1.05)}
+  70%{transform:translate(-14px,12px) scale(0.97)}
+}
+
+.hero-inner{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;align-items:center;
+  max-width:860px;width:100%;
+  animation:hero-in .6s ease both;
+}
+@keyframes hero-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+.hero-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  border:.5px solid var(--border-green);background:var(--green-glow);
+  color:var(--green);border-radius:100px;
+  padding:5px 14px;
+  font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+  margin-bottom:26px;
+  animation:hero-in .6s .05s ease both;
+}
+.badge-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  animation:pulse 2.5s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.6)}}
+
+.hero-h1{
+  font-family:var(--display);
+  font-size:clamp(40px,7.5vw,80px);font-weight:800;
+  line-height:1.03;letter-spacing:-2.5px;
+  margin-bottom:22px;
+  animation:hero-in .65s .1s ease both;
+}
+.h1-outline{
+  -webkit-text-stroke:1.5px rgba(255,255,255,.2);
+  -webkit-text-fill-color:transparent;
+}
+.h1-em{
+  font-style:normal;
+  background:linear-gradient(115deg,var(--green) 0%,#5ef5c8 55%,#b5ffe8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.hero-sub{
+  font-size:17px;font-weight:300;color:var(--tx2);
+  max-width:520px;line-height:1.8;margin-bottom:36px;
+  animation:hero-in .65s .15s ease both;
+}
+
+.hero-actions{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+  margin-bottom:48px;
+  animation:hero-in .65s .22s ease both;
+}
+
+/* stats */
+.stats-row{
+  display:flex;
+  border:.5px solid var(--border-strong);border-radius:var(--r-lg);
+  background:rgba(255,255,255,.025);backdrop-filter:blur(10px);
+  max-width:540px;width:100%;overflow:hidden;
+  list-style:none;
+  animation:hero-in .65s .3s ease both;
+}
+.stat{
+  flex:1;padding:18px 20px;text-align:center;
+  border-right:.5px solid var(--border);
+  position:relative;
+  transition:background var(--ease);
+}
+.stat::after{
+  content:'';position:absolute;bottom:0;left:50%;
+  transform:translateX(-50%);
+  width:0;height:2px;background:var(--green);
+  transition:width .4s ease;border-radius:2px;
+}
+.stat:hover{background:rgba(255,255,255,.035);}
+.stat:hover::after{width:55%;}
+.stat:last-child{border-right:none;}
+.stat-label{
+  font-size:10.5px;color:var(--tx3);letter-spacing:.4px;
+  text-transform:uppercase;font-weight:500;
+  display:block;margin-bottom:6px;
+}
+.stat-value{
+  font-family:var(--display);font-size:26px;font-weight:800;
+  color:var(--green);letter-spacing:-1px;line-height:1;
+  display:block;
+}
+
+.hero-credit{
+  margin-top:28px;font-size:11px;color:var(--tx3);
+  display:flex;align-items:center;gap:5px;
+  animation:hero-in .65s .38s ease both;
+}
+.hero-credit a{color:var(--green);font-weight:500;text-decoration:none;}
+.hero-credit a:hover{text-decoration:underline;}
+
+/* ────────────────── SHARED SECTION ────────────────── */
+.section{padding:var(--s-3xl) 0;}
+.section-alt{background:rgba(255,255,255,.018);}
+.container{max-width:1120px;margin:0 auto;padding:0 48px;}
+
+.section-header{text-align:center;margin-bottom:52px;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase;color:var(--green);
+  margin-bottom:12px;
+}
+.eyebrow::before{content:'';display:inline-block;width:18px;height:1.5px;background:var(--green);}
+.h2{
+  font-family:var(--display);
+  font-size:clamp(28px,4.5vw,46px);font-weight:800;
+  letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;color:var(--tx);
+}
+.lead{font-size:15.5px;color:var(--tx2);line-height:1.8;max-width:480px;margin:0 auto;}
+
+/* ────────────────── REVEAL ────────────────── */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease;}
+.reveal.is-visible{opacity:1;transform:none;}
+.stagger-1.is-visible{transition-delay:.05s}
+.stagger-2.is-visible{transition-delay:.13s}
+.stagger-3.is-visible{transition-delay:.21s}
+.stagger-4.is-visible{transition-delay:.29s}
+
+/* ────────────────── FEATURES ────────────────── */
+.feat-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.feat-card{
+  background:var(--surface);
+  border:.5px solid var(--border);
+  border-radius:var(--r-md);
+  padding:26px 22px;
+  transition:transform var(--ease),border-color var(--ease),background var(--ease);
+  position:relative;overflow:hidden;cursor:default;
+}
+.feat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1.5px;
+  background:linear-gradient(90deg,transparent,var(--card-accent,var(--green)),transparent);
+  opacity:0;transition:opacity var(--ease);
+}
+.feat-card:hover{
+  transform:translateY(-5px);
+  border-color:rgba(255,255,255,.14);
+  background:var(--surface-hover);
+}
+.feat-card:hover::before{opacity:1;}
+
+/* accent colors per card */
+.feat-card[data-accent="green"] .feat-icon{background:rgba(15,255,160,.1);color:var(--green);}
+.feat-card[data-accent="green"]{--card-accent:var(--green);}
+.feat-card[data-accent="blue"] .feat-icon{background:rgba(77,143,255,.1);color:var(--blue);}
+.feat-card[data-accent="blue"]{--card-accent:var(--blue);}
+.feat-card[data-accent="purple"] .feat-icon{background:rgba(167,139,250,.1);color:var(--purple);}
+.feat-card[data-accent="purple"]{--card-accent:var(--purple);}
+.feat-card[data-accent="amber"] .feat-icon{background:rgba(251,191,36,.1);color:var(--amber);}
+.feat-card[data-accent="amber"]{--card-accent:var(--amber);}
+
+.feat-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:16px;transition:transform var(--ease);
+}
+.feat-card:hover .feat-icon{transform:scale(1.08);}
+.feat-title{font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:8px;color:var(--tx);}
+.feat-desc{font-size:12.5px;color:var(--tx2);line-height:1.7;}
+
+/* ────────────────── HOW IT WORKS ────────────────── */
+.hiw-layout{
+  display:flex;gap:80px;align-items:flex-start;
+}
+.hiw-left{flex:0 0 260px;}
+
+.steps{
+  flex:1;list-style:none;
+  display:flex;flex-direction:column;
+  padding-top:4px;
+}
+.step{
+  display:flex;gap:20px;align-items:flex-start;
+  padding-bottom:32px;position:relative;
+}
+.step:not(:last-child)::after{
+  content:'';position:absolute;
+  left:19px;top:44px;bottom:0;
+  width:1px;
+  background:linear-gradient(to bottom,rgba(15,255,160,.3) 0%,transparent 100%);
+}
+.step-num{
+  width:40px;height:40px;flex-shrink:0;
+  border-radius:50%;
+  background:rgba(15,255,160,.08);
+  border:.5px solid rgba(15,255,160,.28);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:11px;font-weight:800;
+  color:var(--green);letter-spacing:.5px;
+  transition:background var(--ease),border-color var(--ease);
+}
+.step:hover .step-num{background:rgba(15,255,160,.18);border-color:var(--green);}
+.step-title{font-family:var(--display);font-size:14.5px;font-weight:700;margin-bottom:5px;color:var(--tx);}
+.step-text{font-size:13px;color:var(--tx2);line-height:1.7;}
+
+/* ────────────────── ROLES ────────────────── */
+.roles-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:14px;max-width:860px;margin:0 auto;
+}
+.role-card{
+  border-radius:var(--r-md);padding:36px 26px;text-align:center;
+  border:.5px solid var(--border);background:var(--surface);
+  transition:transform var(--ease),border-color var(--ease);
+  position:relative;overflow:hidden;
+}
+.role-card::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% -10%,rgba(15,255,160,.06) 0%,transparent 65%);
+  opacity:0;transition:opacity var(--ease);
+}
+.role-card:hover{transform:translateY(-5px);border-color:var(--border-strong);}
+.role-card:hover::after{opacity:1;}
+
+.role-av{
+  width:58px;height:58px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:20px;font-weight:800;
+  margin:0 auto 16px;
+  transition:transform var(--ease);
+}
+.role-card:hover .role-av{transform:scale(1.08);}
+.role-card[data-accent="green"] .role-av{background:rgba(15,255,160,.12);color:var(--green);}
+.role-card[data-accent="blue"] .role-av{background:rgba(77,143,255,.12);color:var(--blue);}
+.role-card[data-accent="amber"] .role-av{background:rgba(251,191,36,.12);color:var(--amber);}
+.role-title{font-family:var(--display);font-size:16px;font-weight:700;margin-bottom:8px;color:var(--tx);}
+.role-desc{font-size:13px;color:var(--tx2);line-height:1.7;}
+
+/* ────────────────── BY BAR ────────────────── */
+.by-bar{
+  border-top:.5px solid var(--border);border-bottom:.5px solid var(--border);
+  padding:32px 48px;
+  display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;
+  text-align:center;
+}
+.by-text{font-size:12.5px;color:var(--tx3);}
+.by-card{
+  display:inline-flex;align-items:center;gap:12px;
+  background:var(--surface);border:.5px solid var(--border);
+  border-radius:100px;padding:9px 18px;text-decoration:none;
+  transition:all var(--ease);
+}
+.by-card:hover{border-color:var(--border-green);background:var(--green-glow);transform:translateY(-2px);}
+.by-badge{
+  background:var(--green);color:#021a0e;
+  font-family:var(--display);font-size:9.5px;font-weight:800;
+  letter-spacing:1.2px;text-transform:uppercase;padding:3px 9px;border-radius:100px;
+}
+.by-name{display:block;font-size:13px;font-weight:500;color:var(--tx);}
+.by-sub{display:block;font-size:11px;color:var(--tx2);}
+
+/* ────────────────── CTA ────────────────── */
+.cta-section{padding:0 48px 80px;}
+.cta-inner{
+  border-radius:var(--r-xl);padding:80px 64px;text-align:center;
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#072818 0%,#050d1f 45%,#0b0e2f 100%);
+  border:.5px solid rgba(15,255,160,.22);
+}
+.cta-glow{position:absolute;border-radius:50%;pointer-events:none;filter:blur(90px);}
+.cta-glow-a{width:380px;height:380px;background:var(--green);opacity:.12;top:-130px;left:-80px;}
+.cta-glow-b{width:280px;height:280px;background:var(--blue);opacity:.12;bottom:-80px;right:8%;}
+.cta-glow-c{width:220px;height:220px;background:var(--purple);opacity:.1;top:-50px;right:28%;}
+.cta-h2{
+  font-family:var(--display);font-size:clamp(28px,4.5vw,46px);font-weight:800;
+  letter-spacing:-1.5px;margin-bottom:14px;position:relative;z-index:2;
+  color:var(--tx);
+}
+.cta-sub{font-size:15px;color:var(--tx2);margin-bottom:36px;position:relative;z-index:2;}
+.cta-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;position:relative;z-index:2;}
+
+/* ────────────────── FOOTER ────────────────── */
+.footer{
+  padding:24px 48px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+  border-top:.5px solid var(--border);
+}
+.footer-left{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.footer-copy,.footer-by{font-size:12px;color:var(--tx3);}
+.footer-by a{color:var(--green);font-weight:500;text-decoration:none;}
+.footer-by a:hover{text-decoration:underline;}
+.footer-nav{display:flex;gap:18px;}
+.footer-nav a{font-size:12px;color:var(--tx3);text-decoration:none;transition:color var(--ease);}
+.footer-nav a:hover{color:var(--tx2);}
+
+/* ────────────────── RESPONSIVE ────────────────── */
+@media(max-width:1024px){
+  .feat-grid{grid-template-columns:repeat(2,1fr);}
+  .nav-links,.nav-by{display:none;}
+}
+@media(max-width:768px){
+  .nav{padding:12px 18px;}
+  .hamburger{display:flex;}
+  .nav-cta{display:none;}
+  .hero{padding:64px 18px 52px;min-height:auto;}
+  .hero-h1{letter-spacing:-1.5px;}
+  .hero-sub{font-size:15px;}
+  .stats-row{flex-direction:column;border-radius:var(--r-md);}
+  .stat{border-right:none;border-bottom:.5px solid var(--border);padding:14px 18px;}
+  .stat:last-child{border-bottom:none;}
+  .section{padding:64px 0;}
+  .container{padding:0 18px;}
+  .feat-grid{grid-template-columns:1fr;gap:10px;}
+  .hiw-layout{flex-direction:column;gap:36px;}
+  .hiw-left{flex:none;text-align:center;}
+  .hiw-left .lead{margin:0 auto;}
+  .hiw-left .btn-primary{margin:32px auto 0;display:inline-flex;}
+  .roles-grid{grid-template-columns:1fr;max-width:400px;margin:0 auto;}
+  .by-bar{padding:24px 18px;flex-direction:column;}
+  .cta-section{padding:0 18px 56px;}
+  .cta-inner{padding:52px 24px;border-radius:var(--r-lg);}
+  .footer{padding:20px 18px;flex-direction:column;align-items:flex-start;gap:10px;}
+}
+@media(max-width:480px){
+  .hero-actions .btn-primary,.hero-actions .btn-ghost{width:100%;justify-content:center;}
+  .stats-row{max-width:100%;}
+  .cta-actions .btn-primary,.cta-actions .btn-ghost{width:100%;justify-content:center;}
+  .roles-grid{max-width:100%;}
+  .hero-h1{letter-spacing:-1px;}
+}
+`;
 
 export default Index;
