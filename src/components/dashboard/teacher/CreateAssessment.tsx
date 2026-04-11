@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Trash2, BookOpen } from "lucide-react";
 import { notifyUserAction } from "@/lib/emailNotifications";
@@ -39,7 +40,6 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
     { question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" },
   ]);
 
-  // Question bank import state
   const [showBankImport, setShowBankImport] = useState(false);
   const [bankQuestions, setBankQuestions] = useState<any[]>([]);
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(new Set());
@@ -60,38 +60,52 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   };
 
   const fetchAvailableQuestions = async () => {
-    // Fetch from question bank
+    // Fetch ALL question bank questions for this subject (from any teacher or admin)
     const { data: qbData } = await supabase.from("question_bank")
-      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, added_by, profiles:added_by(full_name)")
       .eq("subject_id", formData.subject_id);
-    setBankQuestions(qbData || []);
+    setBankQuestions((qbData || []).map((q: any) => ({ ...q, source_label: q.profiles?.full_name || "Unknown" })));
 
-    // Fetch from existing assessments
+    // Fetch from ALL existing assessments & mock exams for this subject
     const { data: aqData } = await supabase.from("questions")
-      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments!inner(subject_id)")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments!inner(subject_id, title, is_mock_exam)")
       .eq("assessments.subject_id", formData.subject_id);
-    setAssessmentQuestions(aqData || []);
+    setAssessmentQuestions((aqData || []).map((q: any) => ({
+      ...q,
+      source_label: q.assessments?.is_mock_exam ? `Mock: ${q.assessments?.title}` : `Assessment: ${q.assessments?.title}`
+    })));
   };
 
   const toggleBankQuestion = (id: string) => {
-    setSelectedBankIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setSelectedBankIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   };
 
   const toggleAssessmentQuestion = (id: string) => {
-    setSelectedAssessmentIds(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+    setSelectedAssessmentIds(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  };
+
+  const selectAllBank = () => {
+    if (selectedBankIds.size === bankQuestions.length) {
+      setSelectedBankIds(new Set());
+    } else {
+      setSelectedBankIds(new Set(bankQuestions.map(q => q.id)));
+    }
+  };
+
+  const selectAllAssessment = () => {
+    if (selectedAssessmentIds.size === assessmentQuestions.length) {
+      setSelectedAssessmentIds(new Set());
+    } else {
+      setSelectedAssessmentIds(new Set(assessmentQuestions.map(q => q.id)));
+    }
   };
 
   const importSelected = () => {
     const imported: Question[] = [];
     const seen = new Set<string>();
+
+    // Add existing questions to seen set to avoid duplicates
+    questions.forEach(q => { if (q.question_text.trim()) seen.add(q.question_text.trim().toLowerCase()); });
 
     bankQuestions.filter(q => selectedBankIds.has(q.id)).forEach(q => {
       const key = q.question_text.trim().toLowerCase();
@@ -109,9 +123,8 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
       }
     });
 
-    if (imported.length === 0) { toast.error("No questions selected"); return; }
+    if (imported.length === 0) { toast.error("No new questions selected (duplicates removed)"); return; }
 
-    // Replace empty first question or append
     const existing = questions.filter(q => q.question_text.trim() !== "");
     setQuestions([...existing, ...imported]);
     setShowBankImport(false);
@@ -184,12 +197,12 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <h3 className="text-lg font-semibold">Questions</h3>
+                <h3 className="text-lg font-semibold">Questions ({questions.filter(q => q.question_text.trim()).length})</h3>
                 <div className="flex gap-2">
                   {formData.subject_id && (
                     <Button type="button" variant="outline" onClick={() => setShowBankImport(!showBankImport)}>
                       <BookOpen className="w-4 h-4 mr-2" />
-                      {showBankImport ? "Hide Bank" : "Import from Bank"}
+                      {showBankImport ? "Hide Import" : "Import Questions"}
                     </Button>
                   )}
                   <Button type="button" onClick={addQuestion} variant="outline">
@@ -201,20 +214,26 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
               {showBankImport && (
                 <Card className="border-primary/30">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Select Questions to Import</CardTitle>
-                    <CardDescription>Choose from question bank and past assessments for this subject</CardDescription>
+                    <CardTitle className="text-base">Import from All Sources</CardTitle>
+                    <CardDescription>Select from question bank (yours + admin), past assessments, and mock exams</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {bankQuestions.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Question Bank ({bankQuestions.length})</h4>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-sm">Question Bank ({bankQuestions.length})</h4>
+                          <Button type="button" variant="ghost" size="sm" onClick={selectAllBank}>
+                            {selectedBankIds.size === bankQuestions.length ? "Deselect All" : "Select All"}
+                          </Button>
+                        </div>
                         <div className="space-y-2 max-h-60 overflow-y-auto">
                           {bankQuestions.map((q) => (
                             <label key={q.id} className="flex items-start gap-2 p-2 border rounded cursor-pointer hover:bg-muted/50">
                               <Checkbox checked={selectedBankIds.has(q.id)} onCheckedChange={() => toggleBankQuestion(q.id)} className="mt-1" />
-                              <div className="text-sm">
+                              <div className="text-sm flex-1">
                                 <p className="font-medium">{q.question_text}</p>
                                 <p className="text-muted-foreground text-xs">A: {q.option_a} | B: {q.option_b} | C: {q.option_c} | D: {q.option_d} • Correct: {q.correct_answer}</p>
+                                <Badge variant="outline" className="text-xs mt-1">By: {q.source_label}</Badge>
                               </div>
                             </label>
                           ))}
@@ -223,14 +242,20 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
                     )}
                     {assessmentQuestions.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Past Assessments ({assessmentQuestions.length})</h4>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-sm">Assessments & Mock Exams ({assessmentQuestions.length})</h4>
+                          <Button type="button" variant="ghost" size="sm" onClick={selectAllAssessment}>
+                            {selectedAssessmentIds.size === assessmentQuestions.length ? "Deselect All" : "Select All"}
+                          </Button>
+                        </div>
                         <div className="space-y-2 max-h-60 overflow-y-auto">
                           {assessmentQuestions.map((q) => (
                             <label key={q.id} className="flex items-start gap-2 p-2 border rounded cursor-pointer hover:bg-muted/50">
                               <Checkbox checked={selectedAssessmentIds.has(q.id)} onCheckedChange={() => toggleAssessmentQuestion(q.id)} className="mt-1" />
-                              <div className="text-sm">
+                              <div className="text-sm flex-1">
                                 <p className="font-medium">{q.question_text}</p>
                                 <p className="text-muted-foreground text-xs">A: {q.option_a} | B: {q.option_b} | C: {q.option_c} | D: {q.option_d} • Correct: {q.correct_answer}</p>
+                                <Badge variant="secondary" className="text-xs mt-1">{q.source_label}</Badge>
                               </div>
                             </label>
                           ))}
