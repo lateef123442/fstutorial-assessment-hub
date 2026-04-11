@@ -72,7 +72,6 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Load existing violations
       setViolations(attempt.violations || 0);
 
       const { data: previousAttempts, error: prevError } = await supabase
@@ -97,7 +96,6 @@ const TakeAssessment = () => {
       setAssessment(attempt.assessments as Assessment);
       setTimeRemaining((attempt.assessments as Assessment).duration_minutes * 60);
 
-      // Fetch questions securely via edge function (without correct_answer)
       const { data: questionsResponse, error: questionsError } = await supabase.functions.invoke(
         "get-assessment-questions",
         { body: { assessment_id: attempt.assessment_id } }
@@ -150,7 +148,6 @@ const TakeAssessment = () => {
     return () => clearInterval(timer);
   }, [timeRemaining, assessment]);
 
-  // Handle tab visibility change - 3 violations rule
   useEffect(() => {
     if (!assessment) return;
 
@@ -159,7 +156,6 @@ const TakeAssessment = () => {
         const newViolations = violations + 1;
         setViolations(newViolations);
 
-        // Update violations in database immediately
         const { error: violationError } = await supabase
           .from("attempts")
           .update({ violations: newViolations })
@@ -171,7 +167,6 @@ const TakeAssessment = () => {
 
         if (newViolations >= MAX_VIOLATIONS) {
           toast.error(`You have exceeded ${MAX_VIOLATIONS} violations. Your exam is being auto-submitted...`);
-          // Submit immediately and wait for completion
           await handleSubmit(true);
         } else {
           const remaining = MAX_VIOLATIONS - newViolations;
@@ -196,18 +191,15 @@ const TakeAssessment = () => {
     isSubmittingRef.current = true;
 
     try {
-      // Prepare answers for submission
       const answersToSubmit = questions.map((q) => ({
         question_id: q.id,
         selected_answer: answers[q.id] || "",
       }));
 
-      // Show loading toast for auto-submit
       if (autoSubmitted) {
         toast.loading("Saving your results...", { id: "auto-submit" });
       }
 
-      // Submit via edge function for server-side scoring
       const { data: result, error: submitError } = await supabase.functions.invoke(
         "submit-assessment-answers",
         {
@@ -219,7 +211,6 @@ const TakeAssessment = () => {
         }
       );
 
-      // Dismiss loading toast
       toast.dismiss("auto-submit");
 
       if (submitError || !result?.success) {
@@ -229,7 +220,6 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Confirm save was successful
       console.log("Assessment saved successfully:", result);
 
       if (autoSubmitted) {
@@ -260,6 +250,10 @@ const TakeAssessment = () => {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Derived stats for the navigator legend
+  const answeredCount = Object.keys(answers).length;
+  const unansweredCount = questions.length - answeredCount;
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -283,7 +277,8 @@ const TakeAssessment = () => {
 
   return (
     <div className="min-h-screen p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Card */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
@@ -295,18 +290,12 @@ const TakeAssessment = () => {
               </div>
 
               <div className="flex items-center gap-4">
-                {/* Violations Warning */}
                 {violations > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="flex items-center gap-1"
-                  >
+                  <Badge variant="destructive" className="flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     {violations}/{MAX_VIOLATIONS} Violations
                   </Badge>
                 )}
-                
-                {/* Timer */}
                 <div className={`flex items-center gap-2 font-bold ${timeRemaining < 60 ? "text-red-500 animate-pulse" : ""}`}>
                   <Clock className="w-5 h-5" />
                   {formatTime(timeRemaining)}
@@ -317,51 +306,147 @@ const TakeAssessment = () => {
           </CardHeader>
         </Card>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>{q.question_text}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RadioGroup
-              value={answers[q.id] || ""}
-              onValueChange={(v) => handleAnswerChange(q.id, v)}
-            >
-              {["A", "B", "C", "D"].map((opt) => (
-                <div 
-                  key={opt} 
-                  className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${
-                    answers[q.id] === opt ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                  }`}
+        {/* Main layout: question on left, navigator on right */}
+        <div className="mt-6 flex flex-col lg:flex-row gap-6">
+
+          {/* Question Card */}
+          <div className="flex-1 min-w-0">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base leading-relaxed">
+                  {currentQuestionIndex + 1}. {q.question_text}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup
+                  value={answers[q.id] || ""}
+                  onValueChange={(v) => handleAnswerChange(q.id, v)}
                 >
-                  <RadioGroupItem value={opt} id={opt} />
-                  <Label htmlFor={opt} className="flex-1 cursor-pointer">
-                    <span className="font-medium mr-2">{opt}.</span>
-                    {q[`option_${opt.toLowerCase()}` as keyof Question]}
-                  </Label>
+                  {["A", "B", "C", "D"].map((opt) => (
+                    <div
+                      key={opt}
+                      className={`border p-3 rounded-lg flex items-center gap-3 cursor-pointer transition-colors ${
+                        answers[q.id] === opt ? "border-primary bg-primary/5" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <RadioGroupItem value={opt} id={`opt-${opt}`} />
+                      <Label htmlFor={`opt-${opt}`} className="flex-1 cursor-pointer">
+                        <span className="font-medium mr-2">{opt}.</span>
+                        {q[`option_${opt.toLowerCase()}` as keyof Question]}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </CardContent>
+            </Card>
+
+            {/* Prev / Next / Submit */}
+            <div className="flex justify-between mt-4">
+              <Button
+                onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+                disabled={currentQuestionIndex === 0}
+                variant="outline"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Button>
+
+              {currentQuestionIndex < questions.length - 1 ? (
+                <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
+                  Next <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleSubmit(false)}
+                  disabled={isSubmittingRef.current}
+                  variant="default"
+                >
+                  Submit Assessment
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Question Navigator Panel */}
+          <div className="w-full lg:w-64 shrink-0">
+            <Card className="sticky top-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">Question Navigator</CardTitle>
+                {/* Legend */}
+                <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-5 h-5 rounded bg-primary text-primary-foreground text-center leading-5 text-[10px] font-bold">1</span>
+                    Current
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-5 h-5 rounded bg-green-500 text-white text-center leading-5 text-[10px] font-bold">1</span>
+                    Answered
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-5 h-5 rounded border border-border text-center leading-5 text-[10px] font-bold">1</span>
+                    Not answered
+                  </span>
                 </div>
-              ))}
-            </RadioGroup>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* Grid of question number buttons */}
+                <div className="grid grid-cols-5 gap-1.5">
+                  {questions.map((question, index) => {
+                    const isAnswered = !!answers[question.id];
+                    const isCurrent = index === currentQuestionIndex;
 
-        <div className="flex justify-between mt-6">
-          <Button
-            onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
-            disabled={currentQuestionIndex === 0}
-            variant="outline"
-          >
-            <ChevronLeft /> Previous
-          </Button>
+                    let btnClass =
+                      "w-full aspect-square text-xs font-semibold rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 ";
 
-          {currentQuestionIndex < questions.length - 1 ? (
-            <Button onClick={() => setCurrentQuestionIndex((i) => i + 1)}>
-              Next <ChevronRight />
-            </Button>
-          ) : (
-            <Button onClick={() => handleSubmit(false)} disabled={isSubmittingRef.current}>
-              Submit Assessment
-            </Button>
-          )}
+                    if (isCurrent) {
+                      btnClass += "bg-primary text-primary-foreground shadow-sm";
+                    } else if (isAnswered) {
+                      btnClass += "bg-green-500 hover:bg-green-600 text-white";
+                    } else {
+                      btnClass += "border border-border bg-background hover:bg-muted text-foreground";
+                    }
+
+                    return (
+                      <button
+                        key={question.id}
+                        className={btnClass}
+                        onClick={() => setCurrentQuestionIndex(index)}
+                        title={`Question ${index + 1}${isAnswered ? " (answered)" : ""}`}
+                      >
+                        {index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Summary stats */}
+                <div className="mt-4 pt-3 border-t border-border space-y-1 text-xs text-muted-foreground">
+                  <div className="flex justify-between">
+                    <span>Answered</span>
+                    <span className="font-semibold text-green-600">{answeredCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Not answered</span>
+                    <span className="font-semibold text-destructive">{unansweredCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total</span>
+                    <span className="font-semibold">{questions.length}</span>
+                  </div>
+                </div>
+
+                {/* Submit button in panel for convenience */}
+                <Button
+                  className="mt-4 w-full"
+                  variant={unansweredCount === 0 ? "default" : "outline"}
+                  onClick={() => handleSubmit(false)}
+                  disabled={isSubmittingRef.current}
+                >
+                  Submit Assessment
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
         </div>
       </div>
     </div>
