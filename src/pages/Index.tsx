@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+const PORTFOLIO_URL = "https://ahmed-portfolio-nine-sable.vercel.app/";
+
 const Index = () => {
   const navigate = useNavigate();
   const cnt1Ref = useRef<HTMLSpanElement>(null);
@@ -16,25 +18,18 @@ const Index = () => {
     checkAuth();
   }, [navigate]);
 
-  // Intersection observer for scroll-in animations
   useEffect(() => {
     const els = document.querySelectorAll(".pn-anim");
     const io = new IntersectionObserver(
       (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("pn-visible"); }),
-      { threshold: 0.12 }
+      { threshold: 0.08 }
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
-  // Animated counters
   useEffect(() => {
-    const animCount = (
-      el: HTMLSpanElement | null,
-      target: number,
-      suffix: string,
-      duration: number
-    ) => {
+    const animCount = (el: HTMLSpanElement | null, target: number, suffix: string, duration: number) => {
       if (!el) return;
       const start = performance.now();
       const step = (now: number) => {
@@ -49,269 +44,363 @@ const Index = () => {
       animCount(cnt1Ref.current, 1200, "+", 1800);
       animCount(cnt2Ref.current, 8400, "+", 2000);
       animCount(cnt3Ref.current, 94, "%", 1600);
-    }, 600);
+    }, 800);
     return () => clearTimeout(t);
   }, []);
+
+  const toggleMenu = () => {
+    const m = document.getElementById("pn-mob");
+    if (m) m.classList.toggle("open");
+  };
 
   return (
     <div className="pn-root">
       <style>{`
-        .pn-root {
-          font-family: 'Inter', system-ui, sans-serif;
-          background: #050d1a;
-          color: #ffffff;
-          overflow-x: hidden;
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+          --g:#0fffa0;--gd:#0dd980;--gg:rgba(15,255,160,0.18);--gs:rgba(15,255,160,0.07);
+          --bl:#3d7eff;--pu:#9b5de5;--am:#ffb347;
+          --bg:#030b15;--bg2:#061220;--sf:rgba(255,255,255,0.04);
+          --bo:rgba(255,255,255,0.08);--bog:rgba(15,255,160,0.22);
+          --tx:#ffffff;--txm:rgba(255,255,255,0.45);--txh:rgba(255,255,255,0.22);
+          --fd:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+          --rsm:10px;--rmd:16px;--rlg:24px;--rxl:32px;
         }
+        .pn-root{font-family:var(--fb);background:var(--bg);color:var(--tx);overflow-x:hidden;min-height:100vh;}
+
+        /* MARQUEE */
+        .pn-strip{background:var(--g);padding:9px 0;overflow:hidden;white-space:nowrap;}
+        .pn-strip-inner{display:inline-flex;animation:marquee 30s linear infinite;}
+        .pn-strip-item{display:inline-flex;align-items:center;gap:10px;font-family:var(--fd);font-size:11px;font-weight:700;color:#03120d;letter-spacing:1.5px;text-transform:uppercase;padding:0 28px;}
+        .pn-strip-dot{width:4px;height:4px;border-radius:50%;background:#03120d;opacity:0.35;flex-shrink:0;}
+        @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
         /* NAV */
-        .pn-nav {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 20px 40px;
-          border-bottom: 0.5px solid rgba(255,255,255,0.08);
-          position: sticky; top: 0; z-index: 100;
-          background: rgba(5,13,26,0.85); backdrop-filter: blur(16px);
+        .pn-nav{
+          display:flex;align-items:center;justify-content:space-between;
+          padding:16px 48px;border-bottom:0.5px solid var(--bo);
+          position:sticky;top:0;z-index:200;
+          background:rgba(3,11,21,0.92);backdrop-filter:blur(20px) saturate(180%);
+          -webkit-backdrop-filter:blur(20px) saturate(180%);
         }
-        .pn-logo { display: flex; align-items: center; gap: 10px; }
-        .pn-logo-icon {
-          width: 36px; height: 36px; border-radius: 10px;
-          background: linear-gradient(135deg, #1dd9a0 0%, #0f8f6a 100%);
-          display: flex; align-items: center; justify-content: center;
+        .pn-logo{display:flex;align-items:center;gap:12px;text-decoration:none;}
+        .pn-logo-mark{
+          width:38px;height:38px;border-radius:11px;flex-shrink:0;
+          background:var(--g);display:flex;align-items:center;justify-content:center;
+          position:relative;overflow:hidden;
         }
-        .pn-logo-name { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.3px; }
-        .pn-logo-sub  { font-size: 10px; color: #6b9a8a; letter-spacing: 1.5px; text-transform: uppercase; }
-        .pn-nav-links { display: flex; gap: 28px; }
-        .pn-nav-links a { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.5); text-decoration: none; transition: color .2s; }
-        .pn-nav-links a:hover { color: #fff; }
-        .pn-nav-btn {
-          background: #1dd9a0; color: #03120d;
-          border: none; border-radius: 8px;
-          padding: 9px 20px; font-size: 13px; font-weight: 700;
-          cursor: pointer; transition: background .2s, transform .15s;
+        .pn-logo-mark::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.28) 0%,transparent 60%);}
+        .pn-logo-name{font-family:var(--fd);font-size:16px;font-weight:800;color:#fff;letter-spacing:-0.4px;line-height:1;}
+        .pn-logo-sub{font-size:9px;color:var(--g);letter-spacing:2.5px;text-transform:uppercase;font-weight:500;}
+        .pn-nav-links{display:flex;gap:32px;}
+        .pn-nav-links a{font-size:13px;font-weight:500;color:var(--txm);text-decoration:none;transition:color .2s;letter-spacing:0.2px;}
+        .pn-nav-links a:hover{color:var(--g);}
+        .pn-nav-right{display:flex;align-items:center;gap:12px;}
+        .pn-nav-wf{font-size:11px;color:var(--txh);text-decoration:none;transition:color .2s;white-space:nowrap;letter-spacing:0.3px;}
+        .pn-nav-wf span{color:var(--g);font-weight:700;}
+        .pn-nav-wf:hover{color:var(--txm);}
+        .pn-nav-btn{
+          background:var(--g);color:#03120d;border:none;border-radius:var(--rsm);
+          padding:9px 22px;font-family:var(--fd);font-size:13px;font-weight:700;
+          cursor:pointer;transition:all .2s;white-space:nowrap;
         }
-        .pn-nav-btn:hover { background: #25f0b2; transform: translateY(-1px); }
+        .pn-nav-btn:hover{background:#25ffb0;transform:translateY(-1px);box-shadow:0 8px 24px rgba(15,255,160,0.3);}
+        .pn-hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px;background:none;border:none;}
+        .pn-hamburger span{display:block;width:22px;height:1.5px;background:var(--tx);border-radius:2px;transition:all .3s;}
+        .pn-mobile-menu{
+          display:none;position:absolute;top:100%;left:0;right:0;
+          background:rgba(3,11,21,0.98);backdrop-filter:blur(24px);
+          border-bottom:0.5px solid var(--bo);padding:20px 24px;
+          flex-direction:column;gap:4px;z-index:199;
+        }
+        .pn-mobile-menu.open{display:flex;}
+        .pn-mobile-menu a{font-size:15px;color:var(--txm);text-decoration:none;padding:12px 0;border-bottom:0.5px solid var(--bo);}
+        .pn-mobile-menu a:last-of-type{border-bottom:none;}
+        .pn-mobile-menu a:hover{color:var(--g);}
+        .pn-mob-btn{margin-top:12px;width:100%;justify-content:center;}
 
         /* HERO */
-        .pn-hero {
-          position: relative; padding: 80px 40px 60px;
-          text-align: center; overflow: hidden; min-height: 560px;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
+        .pn-hero{
+          position:relative;overflow:hidden;
+          padding:100px 48px 80px;min-height:640px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
         }
-        .pn-grid {
-          position: absolute; inset: 0; pointer-events: none;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 48px 48px;
+        .pn-bg-grid{
+          position:absolute;inset:0;pointer-events:none;
+          background-image:linear-gradient(var(--bo) 1px,transparent 1px),linear-gradient(90deg,var(--bo) 1px,transparent 1px);
+          background-size:52px 52px;
+          mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 40%,transparent 100%);
+          -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 50%,black 40%,transparent 100%);
         }
-        .pn-orb {
-          position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.28;
-          pointer-events: none; animation: orbFloat 8s ease-in-out infinite;
+        .pn-orb{position:absolute;border-radius:50%;pointer-events:none;filter:blur(90px);opacity:0.2;animation:orbDrift 10s ease-in-out infinite;}
+        .pn-orb1{width:500px;height:500px;background:var(--g);top:-180px;left:-140px;animation-delay:0s;}
+        .pn-orb2{width:380px;height:380px;background:var(--bl);top:-80px;right:-100px;animation-delay:-4s;}
+        .pn-orb3{width:300px;height:300px;background:var(--pu);bottom:-80px;left:35%;animation-delay:-7s;}
+        @keyframes orbDrift{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(24px,-18px) scale(1.06)}66%{transform:translate(-18px,14px) scale(0.96)}}
+        .pn-hero-badge{
+          display:inline-flex;align-items:center;gap:8px;
+          border:0.5px solid var(--bog);background:var(--gs);
+          color:var(--g);border-radius:100px;padding:6px 16px;
+          font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+          margin-bottom:28px;position:relative;z-index:2;
+          animation:heroIn .6s ease both;
         }
-        .pn-orb1 { width: 400px; height: 400px; background: #1dd9a0; top: -120px; left: -80px; animation-delay: 0s; }
-        .pn-orb2 { width: 320px; height: 320px; background: #0a4fde; top: -60px; right: -60px; animation-delay: -3s; }
-        .pn-orb3 { width: 240px; height: 240px; background: #7c3ddb; bottom: -60px; left: 30%; animation-delay: -5s; }
-        @keyframes orbFloat {
-          0%,100% { transform: translate(0,0) scale(1); }
-          33%      { transform: translate(20px,-15px) scale(1.05); }
-          66%      { transform: translate(-15px,10px) scale(0.97); }
+        .pn-bdot{width:6px;height:6px;border-radius:50%;background:var(--g);animation:blink 2s ease-in-out infinite;}
+        @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.5)}}
+        .pn-hero-h1{
+          font-family:var(--fd);font-size:clamp(38px,7vw,76px);font-weight:800;
+          line-height:1.05;letter-spacing:-2.5px;
+          position:relative;z-index:2;max-width:900px;margin:0 auto;
+          animation:heroIn .7s .1s ease both;
         }
-        .pn-badge {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(29,217,160,0.12); border: 0.5px solid rgba(29,217,160,0.35);
-          color: #1dd9a0; border-radius: 100px;
-          padding: 5px 14px; font-size: 11px; font-weight: 600;
-          letter-spacing: 0.8px; text-transform: uppercase;
-          margin-bottom: 24px; position: relative; z-index: 2;
-          animation: fadeSlideUp .6s ease both;
+        .pn-hero-h1 em{
+          font-style:normal;
+          background:linear-gradient(120deg,var(--g) 0%,#5ef5c8 50%,#a8ffe4 100%);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
         }
-        .pn-badge-dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #1dd9a0; animation: pulse 2s infinite;
+        .pn-outline{-webkit-text-stroke:1.5px rgba(255,255,255,0.22);-webkit-text-fill-color:transparent;}
+        .pn-hero-sub{
+          margin-top:24px;font-size:17px;font-weight:300;
+          color:var(--txm);max-width:540px;line-height:1.75;
+          position:relative;z-index:2;animation:heroIn .7s .2s ease both;
         }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
-        .pn-hero-title {
-          font-size: clamp(36px, 6vw, 68px); font-weight: 900;
-          line-height: 1.08; letter-spacing: -2px;
-          position: relative; z-index: 2; max-width: 820px;
-          animation: fadeSlideUp .7s .1s ease both;
+        .pn-hero-cta{
+          margin-top:40px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;
+          position:relative;z-index:2;animation:heroIn .7s .3s ease both;
         }
-        .pn-grad-text {
-          background: linear-gradient(135deg, #1dd9a0 0%, #5be8c4 40%, #a5f3e0 100%);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-          background-clip: text;
+        .pn-btn-primary{
+          background:var(--g);color:#03120d;border:none;border-radius:var(--rsm);
+          padding:14px 30px;font-family:var(--fd);font-size:14px;font-weight:700;letter-spacing:0.2px;
+          cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:10px;
         }
-        .pn-hero-sub {
-          margin-top: 20px; font-size: 17px; font-weight: 400;
-          color: rgba(255,255,255,0.55); max-width: 520px; line-height: 1.7;
-          position: relative; z-index: 2;
-          animation: fadeSlideUp .7s .2s ease both;
+        .pn-btn-primary:hover{background:#25ffb0;transform:translateY(-3px);box-shadow:0 16px 40px rgba(15,255,160,0.35);}
+        .pn-btn-primary:active{transform:translateY(-1px);}
+        .pn-btn-ghost{
+          background:transparent;color:rgba(255,255,255,0.8);
+          border:0.5px solid rgba(255,255,255,0.18);border-radius:var(--rsm);
+          padding:14px 30px;font-size:14px;font-weight:400;
+          cursor:pointer;transition:all .25s;display:flex;align-items:center;gap:8px;text-decoration:none;
         }
-        .pn-hero-cta {
-          margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-          position: relative; z-index: 2; animation: fadeSlideUp .7s .3s ease both;
-        }
-        .pn-btn-primary {
-          background: #1dd9a0; color: #03120d;
-          border: none; border-radius: 10px;
-          padding: 13px 28px; font-size: 14px; font-weight: 700;
-          cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 8px;
-        }
-        .pn-btn-primary:hover { background: #25f0b2; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(29,217,160,0.3); }
-        .pn-btn-ghost {
-          background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85);
-          border: 0.5px solid rgba(255,255,255,0.15); border-radius: 10px;
-          padding: 13px 28px; font-size: 14px; font-weight: 500;
-          cursor: pointer; transition: all .2s;
-        }
-        .pn-btn-ghost:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+        .pn-btn-ghost:hover{border-color:var(--bog);color:var(--g);transform:translateY(-3px);}
 
         /* STATS */
-        .pn-stats {
-          display: flex; justify-content: center;
-          margin-top: 52px; position: relative; z-index: 2;
-          animation: fadeSlideUp .7s .45s ease both;
-          border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px;
-          background: rgba(255,255,255,0.04); backdrop-filter: blur(10px);
-          max-width: 580px; width: 100%;
+        .pn-stats{
+          display:flex;margin-top:56px;position:relative;z-index:2;
+          animation:heroIn .7s .45s ease both;
+          border:0.5px solid var(--bo);border-radius:var(--rlg);
+          background:rgba(255,255,255,0.03);backdrop-filter:blur(12px);
+          max-width:600px;width:100%;overflow:hidden;
         }
-        .pn-stat { flex: 1; padding: 18px 20px; text-align: center; border-right: 0.5px solid rgba(255,255,255,0.08); }
-        .pn-stat:last-child { border-right: none; }
-        .pn-stat-num { font-size: 24px; font-weight: 800; color: #1dd9a0; letter-spacing: -1px; }
-        .pn-stat-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+        .pn-stat{flex:1;padding:20px 24px;text-align:center;border-right:0.5px solid var(--bo);position:relative;}
+        .pn-stat::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:2px;background:var(--g);transition:width .4s ease;border-radius:2px;}
+        .pn-stat:hover::after{width:60%;}
+        .pn-stat:last-child{border-right:none;}
+        .pn-stat-num{font-family:var(--fd);font-size:26px;font-weight:800;color:var(--g);letter-spacing:-1.5px;line-height:1;}
+        .pn-stat-label{font-size:11px;color:var(--txh);margin-top:4px;letter-spacing:0.3px;}
+
+        /* hero credit */
+        .pn-hero-credit{
+          margin-top:32px;position:relative;z-index:2;animation:heroIn .7s .55s ease both;
+          font-size:11px;color:var(--txh);display:flex;align-items:center;gap:6px;
+        }
+        .pn-hero-credit a{color:var(--g);font-weight:600;text-decoration:none;}
+        .pn-hero-credit a:hover{text-decoration:underline;}
+        @keyframes heroIn{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
 
         /* SECTIONS */
-        .pn-section { padding: 80px 40px; }
-        .pn-section-label {
-          display: inline-block; font-size: 11px; font-weight: 700;
-          letter-spacing: 2px; text-transform: uppercase; color: #1dd9a0; margin-bottom: 12px;
-        }
-        .pn-section-title {
-          font-size: clamp(26px, 4vw, 40px); font-weight: 800;
-          letter-spacing: -1px; line-height: 1.15; margin-bottom: 10px;
-        }
-        .pn-section-sub { font-size: 15px; color: rgba(255,255,255,0.45); line-height: 1.7; margin-bottom: 48px; }
+        .pn-section{padding:96px 48px;}
+        .pn-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--g);margin-bottom:14px;}
+        .pn-eyebrow::before{content:'';display:inline-block;width:20px;height:1.5px;background:var(--g);}
+        .pn-h2{font-family:var(--fd);font-size:clamp(28px,4.5vw,46px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:14px;}
+        .pn-lead{font-size:16px;color:var(--txm);line-height:1.75;max-width:500px;}
+        .pn-divider{height:0.5px;background:linear-gradient(90deg,transparent 0%,var(--bo) 20%,var(--bo) 80%,transparent 100%);margin:0 48px;}
 
-        /* FEATURE CARDS */
-        .pn-features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 16px; }
-        .pn-feat-card {
-          background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.08);
-          border-radius: 16px; padding: 28px 24px;
-          transition: all .3s; position: relative; overflow: hidden;
+        /* FEATURES */
+        .pn-feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:52px;}
+        .pn-feat-card{
+          background:var(--sf);border:0.5px solid var(--bo);border-radius:var(--rmd);padding:28px 22px;
+          transition:all .35s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden;cursor:default;
         }
-        .pn-feat-card::before {
-          content: ''; position: absolute; inset: 0; opacity: 0;
-          background: linear-gradient(135deg, rgba(29,217,160,0.07) 0%, transparent 60%);
-          transition: opacity .3s; border-radius: 16px;
-        }
-        .pn-feat-card:hover { transform: translateY(-4px); border-color: rgba(29,217,160,0.25); }
-        .pn-feat-card:hover::before { opacity: 1; }
-        .pn-feat-icon {
-          width: 44px; height: 44px; border-radius: 12px;
-          display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
-        }
-        .pn-feat-icon-teal   { background: rgba(29,217,160,0.15); }
-        .pn-feat-icon-blue   { background: rgba(55,138,221,0.15); }
-        .pn-feat-icon-purple { background: rgba(124,61,219,0.15); }
-        .pn-feat-icon-amber  { background: rgba(239,159,39,0.15); }
-        .pn-feat-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #fff; }
-        .pn-feat-desc  { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.65; }
+        .pn-feat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--g),transparent);opacity:0;transition:opacity .35s;}
+        .pn-feat-card:hover{transform:translateY(-6px);border-color:var(--bog);background:rgba(15,255,160,0.04);}
+        .pn-feat-card:hover::before{opacity:1;}
+        .pn-feat-ico{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+        .ic-g{background:rgba(15,255,160,0.12);}.ic-b{background:rgba(61,126,255,0.12);}.ic-p{background:rgba(155,93,229,0.12);}.ic-a{background:rgba(255,179,71,0.12);}
+        .pn-feat-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:8px;}
+        .pn-feat-desc{font-size:12.5px;color:var(--txm);line-height:1.65;}
 
         /* HOW IT WORKS */
-        .pn-steps { display: flex; flex-direction: column; }
-        .pn-step { display: flex; gap: 20px; align-items: flex-start; padding-bottom: 32px; position: relative; }
-        .pn-step:not(:last-child)::after {
-          content: ''; position: absolute; left: 19px; top: 40px; bottom: 0; width: 1px;
-          background: linear-gradient(to bottom, rgba(29,217,160,0.3), transparent);
+        .pn-hiw{display:flex;gap:80px;flex-wrap:wrap;align-items:flex-start;max-width:1080px;margin:0 auto;}
+        .pn-hiw-l{flex:1;min-width:220px;}
+        .pn-hiw-r{flex:1.5;min-width:280px;margin-top:8px;}
+        .pn-steps{display:flex;flex-direction:column;}
+        .pn-step{display:flex;gap:20px;padding-bottom:36px;position:relative;align-items:flex-start;}
+        .pn-step:not(:last-child)::after{content:'';position:absolute;left:19px;top:42px;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(15,255,160,0.35) 0%,transparent 100%);}
+        .pn-step-n{
+          width:40px;height:40px;border-radius:50%;flex-shrink:0;
+          background:rgba(15,255,160,0.1);border:0.5px solid rgba(15,255,160,0.3);
+          display:flex;align-items:center;justify-content:center;
+          font-family:var(--fd);font-size:14px;font-weight:800;color:var(--g);transition:all .3s;
         }
-        .pn-step-num {
-          width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-          background: rgba(29,217,160,0.12); border: 0.5px solid rgba(29,217,160,0.35);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 14px; font-weight: 800; color: #1dd9a0;
-        }
-        .pn-step-title { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
-        .pn-step-text  { font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.65; }
+        .pn-step:hover .pn-step-n{background:rgba(15,255,160,0.2);border-color:var(--g);}
+        .pn-step-title{font-family:var(--fd);font-size:14px;font-weight:700;margin-bottom:5px;}
+        .pn-step-text{font-size:13px;color:var(--txm);line-height:1.65;}
 
         /* ROLES */
-        .pn-roles-grid {
-          display: grid; grid-template-columns: repeat(3,1fr);
-          gap: 16px; max-width: 840px; margin: 0 auto;
+        .pn-roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;margin:52px auto 0;}
+        .pn-role-card{
+          border-radius:var(--rmd);padding:36px 28px;text-align:center;
+          border:0.5px solid var(--bo);background:var(--sf);
+          transition:all .35s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden;
         }
-        @media (max-width: 600px) { .pn-roles-grid { grid-template-columns: 1fr; } }
-        .pn-role-card {
-          border-radius: 16px; padding: 32px 24px; text-align: center;
-          border: 0.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
-          transition: all .3s;
+        .pn-role-card::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(15,255,160,0.06) 0%,transparent 70%);opacity:0;transition:opacity .35s;}
+        .pn-role-card:hover{transform:translateY(-6px);border-color:var(--bog);}
+        .pn-role-card:hover::after{opacity:1;}
+        .pn-role-av{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:24px;font-weight:800;margin:0 auto 18px;transition:transform .3s;}
+        .pn-role-card:hover .pn-role-av{transform:scale(1.1);}
+        .av-g{background:rgba(15,255,160,0.12);color:var(--g);}
+        .av-b{background:rgba(61,126,255,0.12);color:#6e9fff;}
+        .av-a{background:rgba(255,179,71,0.12);color:var(--am);}
+        .pn-role-title{font-family:var(--fd);font-size:16px;font-weight:700;margin-bottom:8px;}
+        .pn-role-desc{font-size:13px;color:var(--txm);line-height:1.65;}
+
+        /* WEB FORGE BAR */
+        .pn-built-bar{
+          border-top:0.5px solid var(--bo);border-bottom:0.5px solid var(--bo);
+          padding:36px 48px;display:flex;align-items:center;justify-content:center;
+          gap:24px;flex-wrap:wrap;text-align:center;
         }
-        .pn-role-card:hover { transform: translateY(-4px); border-color: rgba(29,217,160,0.2); background: rgba(29,217,160,0.04); }
-        .pn-role-avatar {
-          width: 60px; height: 60px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 22px; font-weight: 800; margin: 0 auto 16px;
+        .pn-built-text{font-size:13px;color:var(--txh);}
+        .pn-built-card{
+          display:inline-flex;align-items:center;gap:12px;
+          background:var(--sf);border:0.5px solid var(--bo);
+          border-radius:100px;padding:10px 20px;text-decoration:none;transition:all .25s;
         }
-        .pn-role-avatar-teal  { background: rgba(29,217,160,0.15); color: #1dd9a0; }
-        .pn-role-avatar-blue  { background: rgba(55,138,221,0.15); color: #5ba8f0; }
-        .pn-role-avatar-amber { background: rgba(239,159,39,0.15);  color: #f0b429; }
-        .pn-role-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-        .pn-role-desc  { font-size: 13px; color: rgba(255,255,255,0.4); line-height: 1.65; }
+        .pn-built-card:hover{border-color:var(--bog);background:var(--gs);transform:translateY(-2px);}
+        .pn-wf-badge{background:var(--g);color:#03120d;font-family:var(--fd);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:100px;}
+        .pn-wf-name{font-size:13px;font-weight:500;color:var(--tx);}
+        .pn-wf-sub{font-size:11px;color:var(--txm);}
 
         /* CTA */
-        .pn-cta-section {
-          margin: 60px 40px; border-radius: 20px;
-          background: linear-gradient(135deg, #0d2e22 0%, #061a1a 50%, #0a1229 100%);
-          border: 0.5px solid rgba(29,217,160,0.2);
-          padding: 60px 48px; text-align: center;
-          position: relative; overflow: hidden;
+        .pn-cta-wrap{padding:0 48px 80px;}
+        .pn-cta-inner{
+          border-radius:var(--rxl);padding:72px 60px;text-align:center;
+          position:relative;overflow:hidden;
+          background:linear-gradient(135deg,#0a2e1f 0%,#061520 40%,#0b1235 100%);
+          border:0.5px solid var(--bog);
         }
-        .pn-cta-orb { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(70px); opacity: 0.3; }
-        .pn-cta-orb1 { width: 300px; height: 300px; background: #1dd9a0; top: -100px; left: -60px; }
-        .pn-cta-orb2 { width: 200px; height: 200px; background: #0a4fde; bottom: -60px; right: 10%; }
-        .pn-cta-title { font-size: clamp(24px,4vw,38px); font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; position: relative; z-index: 2; }
-        .pn-cta-sub   { font-size: 15px; color: rgba(255,255,255,0.5); margin-bottom: 32px; position: relative; z-index: 2; }
+        .pn-cta-glow{position:absolute;border-radius:50%;pointer-events:none;filter:blur(80px);}
+        .cg1{width:360px;height:360px;background:var(--g);opacity:.13;top:-120px;left:-80px;}
+        .cg2{width:260px;height:260px;background:var(--bl);opacity:.13;bottom:-80px;right:8%;}
+        .cg3{width:200px;height:200px;background:var(--pu);opacity:.11;top:-40px;right:30%;}
+        .pn-cta-h2{font-family:var(--fd);font-size:clamp(26px,4.5vw,44px);font-weight:800;letter-spacing:-1.5px;margin-bottom:14px;position:relative;z-index:2;}
+        .pn-cta-sub{font-size:15px;color:var(--txm);margin-bottom:36px;position:relative;z-index:2;}
+        .pn-cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:2;}
 
         /* FOOTER */
-        .pn-footer {
-          padding: 32px 40px; border-top: 0.5px solid rgba(255,255,255,0.06);
-          display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-        }
-        .pn-footer-copy { font-size: 12px; color: rgba(255,255,255,0.25); }
-        .pn-footer-links { display: flex; gap: 20px; }
-        .pn-footer-links a { font-size: 12px; color: rgba(255,255,255,0.3); text-decoration: none; }
-        .pn-footer-links a:hover { color: #1dd9a0; }
+        .pn-footer{padding:28px 48px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+        .pn-footer-left{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+        .pn-footer-copy{font-size:12px;color:var(--txh);}
+        .pn-footer-by{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txh);}
+        .pn-footer-by a{color:var(--g);font-weight:600;text-decoration:none;}
+        .pn-footer-by a:hover{text-decoration:underline;}
+        .pn-footer-links{display:flex;gap:20px;}
+        .pn-footer-links a{font-size:12px;color:var(--txh);text-decoration:none;transition:color .2s;}
+        .pn-footer-links a:hover{color:var(--g);}
 
-        /* ANIMATIONS */
-        @keyframes fadeSlideUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to   { opacity: 1; transform: translateY(0); }
+        /* ANIM */
+        .pn-anim{opacity:0;transform:translateY(28px);transition:opacity .65s ease,transform .65s ease;}
+        .pn-anim.pn-visible{opacity:1;transform:none;}
+        .pn-d1{transition-delay:.1s}.pn-d2{transition-delay:.2s}.pn-d3{transition-delay:.3s}.pn-d4{transition-delay:.4s}
+
+        /* RESPONSIVE */
+        @media(max-width:1024px){
+          .pn-feat-grid{grid-template-columns:repeat(2,1fr);}
+          .pn-nav-links{display:none;}
+          .pn-nav-wf{display:none;}
         }
-        .pn-anim { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
-        .pn-anim.pn-visible { opacity: 1; transform: none; }
-        .pn-d1 { transition-delay: .1s; }
-        .pn-d2 { transition-delay: .2s; }
-        .pn-d3 { transition-delay: .3s; }
-        .pn-d4 { transition-delay: .4s; }
+        @media(max-width:768px){
+          .pn-nav{padding:14px 20px;}
+          .pn-hamburger{display:flex;}
+          .pn-nav-btn{display:none;}
+          .pn-hero{padding:60px 20px 48px;min-height:auto;}
+          .pn-hero-h1{letter-spacing:-1.5px;}
+          .pn-hero-sub{font-size:15px;}
+          .pn-stats{flex-direction:column;border-radius:var(--rmd);}
+          .pn-stat{border-right:none;border-bottom:0.5px solid var(--bo);padding:16px 20px;}
+          .pn-stat:last-child{border-bottom:none;}
+          .pn-section{padding:60px 20px;}
+          .pn-feat-grid{grid-template-columns:1fr;gap:12px;}
+          .pn-hiw{gap:40px;}
+          .pn-roles-grid{grid-template-columns:1fr;max-width:420px;}
+          .pn-cta-wrap{padding:0 20px 60px;}
+          .pn-cta-inner{padding:48px 24px;border-radius:var(--rlg);}
+          .pn-built-bar{padding:28px 20px;flex-direction:column;}
+          .pn-footer{padding:24px 20px;flex-direction:column;align-items:flex-start;gap:12px;}
+          .pn-divider{margin:0 20px;}
+          .pn-hero-badge{font-size:10px;padding:5px 12px;}
+        }
+        @media(max-width:480px){
+          .pn-hero-h1{letter-spacing:-1px;}
+          .pn-hero-cta{gap:10px;}
+          .pn-btn-primary,.pn-btn-ghost{width:100%;justify-content:center;}
+          .pn-stats{max-width:100%;}
+          .pn-cta-btns .pn-btn-primary,.pn-cta-btns .pn-btn-ghost{width:100%;justify-content:center;}
+          .pn-roles-grid{max-width:100%;}
+          .pn-feat-grid{grid-template-columns:1fr;}
+        }
       `}</style>
+
+      {/* MARQUEE STRIP */}
+      <div className="pn-strip" aria-hidden="true">
+        <div className="pn-strip-inner">
+          {[0, 1].map((gi) => (
+            <span key={gi}>
+              {["Physiotherapy CBT","Instant Results","JAMB-Style Navigator","Timed Assessments","Built for Students","Physio Nexus","Track Your Progress","Ace Your Exams"].map((t, i) => (
+                <span key={i} className="pn-strip-item">{t}<span className="pn-strip-dot" /></span>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* NAV */}
       <nav className="pn-nav">
-        <div className="pn-logo">
-          <div className="pn-logo-icon">
+        <a className="pn-logo" href="#">
+          <div className="pn-logo-mark">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2C10 2 5 5 5 10C5 13.866 7.134 16 10 16C12.866 16 15 13.866 15 10C15 5 10 2 10 2Z" fill="white" opacity="0.9"/>
-              <circle cx="10" cy="10" r="2.5" fill="white"/>
-              <path d="M10 13v3M7 15l3-2 3 2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+              <path d="M10 2C10 2 5 5 5 10C5 13.866 7.134 16 10 16C12.866 16 15 13.866 15 10C15 5 10 2 10 2Z" fill="#03120d" opacity="0.9"/>
+              <circle cx="10" cy="10" r="2.5" fill="#03120d"/>
+              <path d="M10 13v3M7 15l3-2 3 2" stroke="#03120d" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
             <div className="pn-logo-name">Physio Nexus</div>
             <div className="pn-logo-sub">CBT Platform</div>
           </div>
-        </div>
+        </a>
         <div className="pn-nav-links">
           <a href="#features">Features</a>
           <a href="#how-it-works">How it works</a>
           <a href="#roles">Roles</a>
         </div>
-        <button className="pn-nav-btn" onClick={() => navigate("/login")}>Login →</button>
+        <div className="pn-nav-right">
+          <a className="pn-nav-wf" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+            by <span>Web Forge</span>
+          </a>
+          <button className="pn-nav-btn" onClick={() => navigate("/login")}>Login →</button>
+          <button className="pn-hamburger" aria-label="Menu" onClick={toggleMenu}>
+            <span /><span /><span />
+          </button>
+        </div>
+        <div className="pn-mobile-menu" id="pn-mob">
+          <a href="#features" onClick={toggleMenu}>Features</a>
+          <a href="#how-it-works" onClick={toggleMenu}>How it works</a>
+          <a href="#roles" onClick={toggleMenu}>Roles</a>
+          <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer" style={{ color: "var(--g)" }}>Built by Web Forge · Ahmed Abdullateef ↗</a>
+          <button className="pn-btn-primary pn-mob-btn" onClick={() => navigate("/login")}>Login to Physio Nexus →</button>
+        </div>
       </nav>
 
       {/* HERO */}
@@ -319,29 +408,24 @@ const Index = () => {
         <div className="pn-orb pn-orb1" />
         <div className="pn-orb pn-orb2" />
         <div className="pn-orb pn-orb3" />
-        <div className="pn-grid" />
-
-        <div className="pn-badge"><span className="pn-badge-dot" /> Built for physiotherapy students</div>
-
-        <h1 className="pn-hero-title">
-          Ace your exams with<br /><span className="pn-grad-text">Physio Nexus</span>
+        <div className="pn-bg-grid" />
+        <div className="pn-hero-badge"><span className="pn-bdot" />Built for physiotherapy students</div>
+        <h1 className="pn-hero-h1">
+          <span className="pn-outline">Master</span> every exam<br />with <em>Physio Nexus</em>
         </h1>
         <p className="pn-hero-sub">
-          The advanced CBT platform built specifically for physiotherapy students — timed assessments, instant results, and real analytics.
+          The advanced CBT platform built for physio students — timed tests, JAMB-style navigation, instant results, and deep analytics.
         </p>
-
         <div className="pn-hero-cta">
           <button className="pn-btn-primary" onClick={() => navigate("/login")}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Start learning
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            Start for free
           </button>
           <button className="pn-btn-ghost" onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}>
-            See how it works
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2"/><path d="M7 4.5v3l2 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+            How it works
           </button>
         </div>
-
         <div className="pn-stats">
           <div className="pn-stat">
             <div className="pn-stat-num"><span ref={cnt1Ref}>0+</span></div>
@@ -356,34 +440,31 @@ const Index = () => {
             <div className="pn-stat-label">Pass rate</div>
           </div>
         </div>
+        <div className="pn-hero-credit">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1l1.5 3.3H11L8.3 6.5l1 3.2L6 8 2.7 9.7l1-3.2L1 4.3h3.5L6 1z" fill="currentColor" opacity="0.6"/></svg>
+          Crafted by&nbsp;<a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">Web Forge · Ahmed Abdullateef</a>
+        </div>
       </section>
 
       {/* FEATURES */}
+      <div className="pn-divider" />
       <section className="pn-section" id="features">
-        <div className="pn-anim" style={{ textAlign: "center", marginBottom: 48 }}>
-          <span className="pn-section-label">Why choose us</span>
-          <h2 className="pn-section-title">Everything you need to excel</h2>
-          <p className="pn-section-sub" style={{ maxWidth: 480, margin: "0 auto 0" }}>
-            Purpose-built tools that make studying physiology, anatomy, and biomechanics actually effective.
+        <div className="pn-anim" style={{ textAlign: "center" }}>
+          <div className="pn-eyebrow">Why choose us</div>
+          <h2 className="pn-h2">Everything you need to excel</h2>
+          <p className="pn-lead" style={{ margin: "0 auto" }}>
+            Purpose-built for physio students — from anatomy to biomechanics, every module covered.
           </p>
         </div>
-        <div className="pn-features-grid">
+        <div className="pn-feat-grid">
           {[
-            { color: "teal", title: "Comprehensive assessments", desc: "Multiple-choice questions, timed tests, and instant auto-grading — covering every physio module.", icon: (
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#1dd9a0"/><rect x="12" y="3" width="7" height="7" rx="2" fill="#1dd9a0" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="#1dd9a0" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="#1dd9a0" opacity=".25"/></svg>
-            )},
-            { color: "blue", title: "Timed CBT environment", desc: "Real exam simulation with countdown timers, anti-tab violations, and automatic submission.", icon: (
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#5ba8f0" strokeWidth="1.5"/><path d="M11 7v4l3 2" stroke="#5ba8f0" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            )},
-            { color: "purple", title: "Analytics & performance", desc: "Track scores, identify weak areas, and monitor improvement across all subjects over time.", icon: (
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 16l4-4 3 3 4-5 3 3" stroke="#b07ef5" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="3" width="16" height="16" rx="3" stroke="#b07ef5" strokeWidth="1.2"/></svg>
-            )},
-            { color: "amber", title: "Instant results & email", desc: "Scores are calculated server-side and delivered immediately with detailed breakdowns by email.", icon: (
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3l2.5 5.5H19l-4.5 3.5 1.5 5.5L11 14l-5 3.5 1.5-5.5L3 8.5h5.5L11 3z" fill="#f0b429" opacity="0.8"/></svg>
-            )},
+            { ic:"ic-g", title:"Comprehensive assessments", desc:"MCQs, timed tests, and instant auto-grading across every physio module.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="2" fill="#0fffa0"/><rect x="12" y="3" width="7" height="7" rx="2" fill="#0fffa0" opacity=".5"/><rect x="3" y="12" width="7" height="7" rx="2" fill="#0fffa0" opacity=".5"/><rect x="12" y="12" width="7" height="7" rx="2" fill="#0fffa0" opacity=".25"/></svg> },
+            { ic:"ic-b", title:"Timed CBT environment", desc:"Real exam simulation with countdown timers, tab-violation detection, and auto-submit.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#6e9fff" strokeWidth="1.5"/><path d="M11 7v4l3 2" stroke="#6e9fff" strokeWidth="1.5" strokeLinecap="round"/></svg> },
+            { ic:"ic-p", title:"Deep analytics", desc:"Track scores, spot weak areas, and monitor improvement across every session.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 16l4-4 3 3 4-5 3 3" stroke="#c084fc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><rect x="3" y="3" width="16" height="16" rx="3" stroke="#c084fc" strokeWidth="1.2"/></svg> },
+            { ic:"ic-a", title:"Instant results & email", desc:"Server-side scoring delivers your result the moment you submit — zero delay.", svg:<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3l2.5 5.5H19l-4.5 3.5 1.5 5.5L11 14l-5 3.5 1.5-5.5L3 8.5h5.5L11 3z" fill="#ffb347" opacity="0.85"/></svg> },
           ].map((f, i) => (
             <div key={f.title} className={`pn-feat-card pn-anim pn-d${i + 1}`}>
-              <div className={`pn-feat-icon pn-feat-icon-${f.color}`}>{f.icon}</div>
+              <div className={`pn-feat-ico ${f.ic}`}>{f.svg}</div>
               <div className="pn-feat-title">{f.title}</div>
               <div className="pn-feat-desc">{f.desc}</div>
             </div>
@@ -392,48 +473,56 @@ const Index = () => {
       </section>
 
       {/* HOW IT WORKS */}
-      <section className="pn-section" id="how-it-works" style={{ background: "rgba(255,255,255,0.015)", borderTop: "0.5px solid rgba(255,255,255,0.05)", borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", display: "flex", gap: 80, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div style={{ flex: 1, minWidth: 220 }}>
+      <div className="pn-divider" />
+      <section className="pn-section" id="how-it-works" style={{ background: "rgba(255,255,255,0.012)" }}>
+        <div className="pn-hiw">
+          <div className="pn-hiw-l">
             <div className="pn-anim">
-              <span className="pn-section-label">How it works</span>
-              <h2 className="pn-section-title">Simple, fast,<br />effective</h2>
-              <p className="pn-section-sub">From registration to results in minutes. No setup headaches.</p>
+              <div className="pn-eyebrow">How it works</div>
+              <h2 className="pn-h2">Simple.<br />Fast.<br />Effective.</h2>
+              <p className="pn-lead">From registration to results in under a minute.</p>
+              <button className="pn-btn-primary" style={{ marginTop: 32 }} onClick={() => navigate("/login")}>
+                Get started
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7h8M8 4l3 3-3 3" stroke="#03120d" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </button>
             </div>
           </div>
-          <div className="pn-steps" style={{ flex: 1.4, minWidth: 260 }}>
-            {[
-              { title: "Register & get assigned", text: "An admin creates your account and assigns you to the right subjects and cohorts." },
-              { title: "Receive your assessment link", text: "Your teacher publishes a timed test. Access it directly from your student dashboard." },
-              { title: "Take the CBT exam", text: "Answer questions with the JAMB-style navigator, manage time, and submit confidently." },
-              { title: "Get your results instantly", text: "Scores are calculated server-side and delivered immediately — no waiting, no guessing." },
-            ].map((s, i) => (
-              <div key={s.title} className={`pn-step pn-anim pn-d${i + 1}`}>
-                <div className="pn-step-num">{i + 1}</div>
-                <div>
-                  <div className="pn-step-title">{s.title}</div>
-                  <div className="pn-step-text">{s.text}</div>
+          <div className="pn-hiw-r">
+            <div className="pn-steps">
+              {[
+                { title:"Register & get assigned", text:"An admin creates your account and assigns you to the right subjects and cohorts." },
+                { title:"Receive your assessment link", text:"Your teacher publishes a timed test. Access it directly from your student dashboard." },
+                { title:"Take the CBT exam", text:"Navigate questions JAMB-style, manage your time, and submit with confidence." },
+                { title:"Get your results instantly", text:"Scores are calculated server-side the moment you submit — no waiting, ever." },
+              ].map((s, i) => (
+                <div key={s.title} className={`pn-step pn-anim pn-d${i + 1}`}>
+                  <div className="pn-step-n">{i + 1}</div>
+                  <div>
+                    <div className="pn-step-title">{s.title}</div>
+                    <div className="pn-step-text">{s.text}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ROLES */}
-      <section className="pn-section" id="roles" style={{ background: "rgba(255,255,255,0.02)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
-        <div style={{ textAlign: "center", marginBottom: 48 }} className="pn-anim">
-          <span className="pn-section-label">Platform roles</span>
-          <h2 className="pn-section-title">Built for everyone</h2>
+      <div className="pn-divider" />
+      <section className="pn-section" id="roles">
+        <div className="pn-anim" style={{ textAlign: "center" }}>
+          <div className="pn-eyebrow">Platform roles</div>
+          <h2 className="pn-h2">Built for everyone</h2>
         </div>
         <div className="pn-roles-grid">
           {[
-            { letter: "A", color: "teal",  title: "Administrators", desc: "Manage teachers, students, subjects, and view institution-wide analytics." },
-            { letter: "T", color: "blue",  title: "Teachers",       desc: "Create assessments, upload questions, and monitor student performance per cohort." },
-            { letter: "S", color: "amber", title: "Students",       desc: "Take timed exams, view past results, and track your academic progress over time." },
+            { letter:"A", av:"av-g", title:"Administrators", desc:"Manage teachers, students, subjects, and view institution-wide performance analytics." },
+            { letter:"T", av:"av-b", title:"Teachers",       desc:"Create assessments, manage question banks, and track per-cohort performance." },
+            { letter:"S", av:"av-a", title:"Students",       desc:"Take timed exams, view past results, and track your academic progress over time." },
           ].map((r, i) => (
             <div key={r.title} className={`pn-role-card pn-anim pn-d${i + 1}`}>
-              <div className={`pn-role-avatar pn-role-avatar-${r.color}`}>{r.letter}</div>
+              <div className={`pn-role-av ${r.av}`}>{r.letter}</div>
               <div className="pn-role-title">{r.title}</div>
               <div className="pn-role-desc">{r.desc}</div>
             </div>
@@ -441,24 +530,46 @@ const Index = () => {
         </div>
       </section>
 
+      {/* WEB FORGE BAR */}
+      <div className="pn-built-bar pn-anim">
+        <span className="pn-built-text">Designed &amp; built by</span>
+        <a className="pn-built-card" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+          <span className="pn-wf-badge">Web Forge</span>
+          <span>
+            <div className="pn-wf-name">Ahmed Abdullateef</div>
+            <div className="pn-wf-sub">View portfolio ↗</div>
+          </span>
+        </a>
+        <span className="pn-built-text">— Premium web experiences</span>
+      </div>
+
       {/* CTA */}
-      <div className="pn-cta-section pn-anim">
-        <div className="pn-cta-orb pn-cta-orb1" />
-        <div className="pn-cta-orb pn-cta-orb2" />
-        <h2 className="pn-cta-title">Ready to transform how you study?</h2>
-        <p className="pn-cta-sub">Join Physio Nexus and experience the future of physiotherapy education.</p>
-        <button className="pn-btn-primary" style={{ margin: "0 auto", position: "relative", zIndex: 2 }} onClick={() => navigate("/login")}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Get started now
-        </button>
+      <div className="pn-cta-wrap">
+        <div className="pn-cta-inner pn-anim">
+          <div className="pn-cta-glow cg1" /><div className="pn-cta-glow cg2" /><div className="pn-cta-glow cg3" />
+          <h2 className="pn-cta-h2">Ready to transform how<br />you study physiotherapy?</h2>
+          <p className="pn-cta-sub">Join Physio Nexus today — it takes less than a minute to get started.</p>
+          <div className="pn-cta-btns">
+            <button className="pn-btn-primary" onClick={() => navigate("/login")}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14.5 8L8 14.5M14.5 8H1.5" stroke="#03120d" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              Start now — it's free
+            </button>
+            <a className="pn-btn-ghost" href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">
+              Built by Web Forge ↗
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* FOOTER */}
       <footer className="pn-footer">
-        <div className="pn-footer-copy">© 2025 Physio Nexus. All rights reserved.</div>
-        <div>created by Web Forge <a href="https://ahmed-portfolio-nine-sable.vercel.app/">Ahmed Abdullateef</a></div>
+        <div className="pn-footer-left">
+          <span className="pn-footer-copy">© 2025 Physio Nexus. All rights reserved.</span>
+          <span className="pn-footer-by">
+            Created by&nbsp;
+            <a href={PORTFOLIO_URL} target="_blank" rel="noopener noreferrer">Web Forge · Ahmed Abdullateef</a>
+          </span>
+        </div>
         <div className="pn-footer-links">
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
