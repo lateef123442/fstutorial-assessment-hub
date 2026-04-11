@@ -367,38 +367,38 @@ const TakeAssessment = () => {
           </div>
 
           {/* Question Navigator Panel */}
-          <div className="w-full lg:w-64 shrink-0">
+          <div className="w-full lg:w-52 shrink-0">
             <Card className="sticky top-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Question Navigator</CardTitle>
+              <CardHeader className="pb-2 px-3 pt-3">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Navigator</CardTitle>
                 {/* Legend */}
-                <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-5 h-5 rounded bg-primary text-primary-foreground text-center leading-5 text-[10px] font-bold">1</span>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="inline-flex w-4 h-4 rounded items-center justify-center bg-primary text-primary-foreground text-[9px] font-bold">1</span>
                     Current
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-5 h-5 rounded bg-green-500 text-white text-center leading-5 text-[10px] font-bold">1</span>
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="inline-flex w-4 h-4 rounded items-center justify-center bg-green-500 text-white text-[9px] font-bold">1</span>
                     Answered
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="inline-block w-5 h-5 rounded border border-border text-center leading-5 text-[10px] font-bold">1</span>
-                    Not answered
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span className="inline-flex w-4 h-4 rounded items-center justify-center border border-border text-[9px] font-bold">1</span>
+                    Unanswered
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                {/* Grid of question number buttons */}
-                <div className="grid grid-cols-5 gap-1.5">
+              <CardContent className="pt-0 px-3 pb-3">
+                {/* Grid of question number buttons — 7 cols on desktop, 10 cols on mobile (horizontal scroll) */}
+                <div className="grid grid-cols-10 lg:grid-cols-7 gap-1">
                   {questions.map((question, index) => {
                     const isAnswered = !!answers[question.id];
                     const isCurrent = index === currentQuestionIndex;
 
                     let btnClass =
-                      "w-full aspect-square text-xs font-semibold rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 ";
+                      "w-full aspect-square flex items-center justify-center text-[10px] font-semibold rounded transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 ";
 
                     if (isCurrent) {
-                      btnClass += "bg-primary text-primary-foreground shadow-sm";
+                      btnClass += "bg-primary text-primary-foreground";
                     } else if (isAnswered) {
                       btnClass += "bg-green-500 hover:bg-green-600 text-white";
                     } else {
