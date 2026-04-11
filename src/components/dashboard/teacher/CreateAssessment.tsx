@@ -290,12 +290,16 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
                     </div>
                     <div>
                       <Label>Correct Answer</Label>
-                      <Select value={question.correct_answer} onValueChange={(value) => updateQuestion(index, "correct_answer", value)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-background z-50">
-                          <SelectItem value="A">A</SelectItem><SelectItem value="B">B</SelectItem><SelectItem value="C">C</SelectItem><SelectItem value="D">D</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <select
+                        value={question.correct_answer}
+                        onChange={(e) => updateQuestion(index, "correct_answer", e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                      </select>
                     </div>
                   </CardContent>
                 </Card>
