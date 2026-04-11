@@ -74,7 +74,7 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
             <ViewAttempts />
           </TabsContent>
 
-          <TabsContent value="create" className="animate-fade-in">
+          <TabsContent value="create" className="animate-fade-in" forceMount>
             <div className="space-y-6">
               <CreateAssessment
                 teacherId={user.id}
