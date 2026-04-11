@@ -17,6 +17,7 @@ interface TeacherDashboardProps {
 
 const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
   const [assessmentsRefreshKey, setAssessmentsRefreshKey] = useState(0);
+  const [activeTab, setActiveTab] = useState("assessments");
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -46,7 +47,7 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="assessments">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="assessments" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
@@ -66,27 +67,33 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="assessments" className="animate-fade-in">
-            <MyAssessments teacherId={user.id} refreshKey={assessmentsRefreshKey} />
-          </TabsContent>
+          {activeTab === "assessments" && (
+            <div className="animate-fade-in">
+              <MyAssessments teacherId={user.id} refreshKey={assessmentsRefreshKey} />
+            </div>
+          )}
 
-          <TabsContent value="attempts" className="animate-fade-in">
-            <ViewAttempts />
-          </TabsContent>
+          {activeTab === "attempts" && (
+            <div className="animate-fade-in">
+              <ViewAttempts />
+            </div>
+          )}
 
-          <TabsContent value="create" className="animate-fade-in">
-            <div className="space-y-6">
+          {activeTab === "create" && (
+            <div className="animate-fade-in space-y-6">
               <CreateAssessment
                 teacherId={user.id}
                 onCreated={() => setAssessmentsRefreshKey((k) => k + 1)}
               />
               <ScheduleReminders />
             </div>
-          </TabsContent>
+          )}
 
-          <TabsContent value="questionbank" className="animate-fade-in">
-            <TeacherQuestionBank teacherId={user.id} />
-          </TabsContent>
+          {activeTab === "questionbank" && (
+            <div className="animate-fade-in">
+              <TeacherQuestionBank teacherId={user.id} />
+            </div>
+          )}
         </Tabs>
       </main>
     </div>
