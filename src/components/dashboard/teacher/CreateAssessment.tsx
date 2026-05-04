@@ -207,6 +207,20 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
                   ))}
                 </select>
               </div>
+              <div>
+                <Label>Class</Label>
+                <select
+                  value={formData.class_id}
+                  onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  required
+                >
+                  <option value="">Select class</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
               <div><Label htmlFor="duration">Duration (minutes)</Label><Input id="duration" type="number" value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })} required /></div>
               <div><Label htmlFor="passing">Passing Score (%)</Label><Input id="passing" type="number" value={formData.passing_score} onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })} required /></div>
               <div><Label htmlFor="marks">Marks per Question</Label><Input id="marks" type="number" min={1} value={formData.marks_per_question} onChange={(e) => setFormData({ ...formData, marks_per_question: parseInt(e.target.value) || 1 })} required /></div>
