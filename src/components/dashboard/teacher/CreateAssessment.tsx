@@ -156,6 +156,7 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.subject_id) { toast.error("Please select a subject"); return; }
+    if (!formData.class_id) { toast.error("Please select a class"); return; }
     if (questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) { toast.error("Please fill in all question fields"); return; }
 
     try {
@@ -165,10 +166,10 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
       const { error: questionsError } = await supabase.from("questions").insert(questions.map(q => ({ ...q, assessment_id: assessment.id })));
       if (questionsError) throw questionsError;
 
-      const { data: students } = await supabase.from("user_roles").select("user_id, profiles(full_name, email)").eq("role", "student");
+      const { data: students } = await supabase.from("user_roles").select("user_id, profiles(full_name, email, class_id)").eq("role", "student");
       if (students) {
         students.forEach((student: any) => {
-          if (student.profiles) {
+          if (student.profiles && student.profiles.class_id === formData.class_id) {
             notifyUserAction(student.profiles.email, student.profiles.full_name, "assessment_created", `A new assessment "${formData.title}" has been created and is now available for you to take.`);
           }
         });
@@ -176,7 +177,7 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
 
       toast.success("Assessment created successfully!");
       onCreated?.();
-      setFormData({ title: "", subject_id: "", duration_minutes: 30, passing_score: 70, marks_per_question: 1, scheduled_date: "", scheduled_time: "" });
+      setFormData({ title: "", subject_id: "", class_id: "", duration_minutes: 30, passing_score: 70, marks_per_question: 1, scheduled_date: "", scheduled_time: "" });
       setQuestions([{ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" }]);
     } catch (error: any) { toast.error(error.message); }
   };
