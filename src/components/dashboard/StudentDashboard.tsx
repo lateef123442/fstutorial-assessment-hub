@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Trophy, LogOut, GraduationCap, Shuffle, BarChart3 } from "lucide-react";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AvailableAssessments from "./student/AvailableAssessments";
-import StudentMockExams from "./student/StudentMockExams";  // Ensure the file is named StudentMockExams.tsx
+import StudentMockExams from "./student/StudentMockExams";
 import MyResults from "./student/MyResults";
 import PracticeQuestions from "./student/PracticeQuestions";
 import Leaderboard from "./Leaderboard";
@@ -15,6 +16,21 @@ interface StudentDashboardProps {
 }
 
 const StudentDashboard = ({ user }: StudentDashboardProps) => {
+  const [className, setClassName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchClass = async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("class_id, classes(name)")
+        .eq("id", user.id)
+        .maybeSingle();
+      const cls = (profile as any)?.classes?.name;
+      setClassName(cls || null);
+    };
+    fetchClass();
+  }, [user.id]);
+
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -32,7 +48,9 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
             </div>
             <div>
               <h1 className="text-2xl font-bold">PHYSIO NEXUS</h1>
-              <p className="text-sm text-muted-foreground">Student Dashboard</p>
+              <p className="text-sm text-muted-foreground">
+                Student Dashboard{className ? ` • Class: ${className}` : " • No class assigned"}
+              </p>
             </div>
           </div>
           <Button variant="outline" onClick={handleLogout}>

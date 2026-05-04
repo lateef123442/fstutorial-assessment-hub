@@ -41,9 +41,11 @@ const CreateMockExam = () => {
     total_duration_minutes: 180,
     marks_per_question: 1,
     is_active: true,
+    class_id: "",
   });
 
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<SubjectData[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -83,7 +85,12 @@ const CreateMockExam = () => {
         setAvailableSubjects(data || []);
       }
     };
+    const fetchClasses = async () => {
+      const { data } = await supabase.from("classes").select("id, name").order("name");
+      if (data) setClasses(data);
+    };
     fetchSubjects();
+    fetchClasses();
   }, []);
 
   useEffect(() => {
@@ -148,6 +155,11 @@ const CreateMockExam = () => {
       return;
     }
 
+    if (!formData.class_id) {
+      toast.error("Please select a class");
+      return;
+    }
+
     for (const subj of subjects) {
       if (subj.questions.length === 0 || subj.questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) {
         toast.error(`Please fill in all fields for ${subj.subject}`);
@@ -168,6 +180,7 @@ const CreateMockExam = () => {
           total_duration_minutes: formData.total_duration_minutes,
           marks_per_question: formData.marks_per_question,
           is_active: formData.is_active,
+          class_id: formData.class_id,
           created_by: user.id,
         })
         .select()
@@ -204,6 +217,7 @@ const CreateMockExam = () => {
             is_mock_exam: true,
             scheduled_date: formData.scheduled_date,
             scheduled_time: formData.scheduled_time || null,
+            class_id: formData.class_id,
           })
           .select()
           .single();
@@ -245,6 +259,7 @@ const CreateMockExam = () => {
         total_duration_minutes: 180,
         marks_per_question: 1,
         is_active: true,
+        class_id: "",
       });
       setSelectedSubjectIds([]);
       setSubjects([]);
@@ -346,6 +361,22 @@ const CreateMockExam = () => {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Optional description..."
               />
+            </div>
+
+            <div>
+              <Label htmlFor="class_id">Class *</Label>
+              <select
+                id="class_id"
+                value={formData.class_id}
+                onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Select class</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>

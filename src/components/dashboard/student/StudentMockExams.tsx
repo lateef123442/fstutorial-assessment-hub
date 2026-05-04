@@ -58,6 +58,18 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
 
   const fetchMockExams = async () => {
     try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("class_id")
+        .eq("id", studentId)
+        .maybeSingle();
+
+      if (!profile?.class_id) {
+        setMockExams([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: exams, error } = await supabase
         .from("mock_exams")
         .select(`
@@ -79,6 +91,7 @@ const StudentMockExams = ({ studentId }: StudentMockExamsProps) => {
           )
         `)
         .eq("is_active", true)
+        .eq("class_id", profile.class_id)
         .order("scheduled_date", { ascending: true });
 
       if (error) {
