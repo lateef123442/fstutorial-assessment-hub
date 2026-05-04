@@ -48,7 +48,9 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
             </div>
             <div>
               <h1 className="text-2xl font-bold">PHYSIO NEXUS</h1>
-              <p className="text-sm text-muted-foreground">Student Dashboard</p>
+              <p className="text-sm text-muted-foreground">
+                Student Dashboard{className ? ` • Class: ${className}` : " • No class assigned"}
+              </p>
             </div>
           </div>
           <Button variant="outline" onClick={handleLogout}>
