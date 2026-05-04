@@ -85,7 +85,12 @@ const CreateMockExam = () => {
         setAvailableSubjects(data || []);
       }
     };
+    const fetchClasses = async () => {
+      const { data } = await supabase.from("classes").select("id, name").order("name");
+      if (data) setClasses(data);
+    };
     fetchSubjects();
+    fetchClasses();
   }, []);
 
   useEffect(() => {
