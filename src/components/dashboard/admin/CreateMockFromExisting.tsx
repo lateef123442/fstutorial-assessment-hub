@@ -388,6 +388,11 @@ const CreateMockFromExisting = () => {
       return;
     }
 
+    if (!formData.class_id) {
+      toast.error("Please select a class");
+      return;
+    }
+
     // If no preview, generate one first
     if (Object.keys(previewData).length === 0) {
       toast.error("Please preview questions first before creating");
@@ -408,6 +413,7 @@ const CreateMockFromExisting = () => {
           total_duration_minutes: formData.total_duration_minutes,
           marks_per_question: formData.marks_per_question,
           is_active: formData.is_active,
+          class_id: formData.class_id,
           created_by: user.id,
         })
         .select()
@@ -441,6 +447,7 @@ const CreateMockFromExisting = () => {
             is_mock_exam: true,
             scheduled_date: formData.scheduled_date,
             scheduled_time: formData.scheduled_time || null,
+            class_id: formData.class_id,
           })
           .select()
           .single();
@@ -482,6 +489,7 @@ const CreateMockFromExisting = () => {
         total_duration_minutes: 180,
         marks_per_question: 1,
         is_active: true,
+        class_id: "",
       });
       setSelectedSubjects([]);
       setPreviewData({});
