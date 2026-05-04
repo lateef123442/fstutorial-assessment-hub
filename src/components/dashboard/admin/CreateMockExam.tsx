@@ -155,6 +155,11 @@ const CreateMockExam = () => {
       return;
     }
 
+    if (!formData.class_id) {
+      toast.error("Please select a class");
+      return;
+    }
+
     for (const subj of subjects) {
       if (subj.questions.length === 0 || subj.questions.some(q => !q.question_text || !q.option_a || !q.option_b || !q.option_c || !q.option_d)) {
         toast.error(`Please fill in all fields for ${subj.subject}`);
@@ -175,6 +180,7 @@ const CreateMockExam = () => {
           total_duration_minutes: formData.total_duration_minutes,
           marks_per_question: formData.marks_per_question,
           is_active: formData.is_active,
+          class_id: formData.class_id,
           created_by: user.id,
         })
         .select()
@@ -211,6 +217,7 @@ const CreateMockExam = () => {
             is_mock_exam: true,
             scheduled_date: formData.scheduled_date,
             scheduled_time: formData.scheduled_time || null,
+            class_id: formData.class_id,
           })
           .select()
           .single();
