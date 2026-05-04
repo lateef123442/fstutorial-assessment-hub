@@ -46,7 +46,19 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
     const count = parseInt(questionCount);
     const allQuestions: PracticeQuestion[] = [];
 
-    // Fetch from question bank (all questions added by teachers and admins)
+    // Get student's class
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("class_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (!profile?.class_id) {
+      toast.error("You are not assigned to a class. Please contact admin.");
+      return;
+    }
+
+    // Fetch from question bank (shared across classes)
     let qbQuery = supabase.from("question_bank").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, subject_id, subjects(name)");
     if (selectedSubject !== "all") qbQuery = qbQuery.eq("subject_id", selectedSubject);
     const { data: qbData } = await qbQuery;
@@ -56,8 +68,11 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
       });
     }
 
-    // Fetch from assessment questions
-    let aqQuery = supabase.from("questions").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments(subject_id, subjects(name))");
+    // Fetch from assessment questions for student's class only
+    let aqQuery = supabase
+      .from("questions")
+      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments!inner(subject_id, class_id, subjects(name))")
+      .eq("assessments.class_id", profile.class_id);
     if (selectedSubject !== "all") aqQuery = aqQuery.eq("assessments.subject_id", selectedSubject);
     const { data: aqData } = await aqQuery;
     if (aqData) {
