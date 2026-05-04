@@ -259,6 +259,7 @@ const CreateMockExam = () => {
         total_duration_minutes: 180,
         marks_per_question: 1,
         is_active: true,
+        class_id: "",
       });
       setSelectedSubjectIds([]);
       setSubjects([]);
