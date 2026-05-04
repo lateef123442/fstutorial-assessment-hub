@@ -54,7 +54,9 @@ const CreateMockFromExisting = () => {
     total_duration_minutes: 180,
     marks_per_question: 1,
     is_active: true,
+    class_id: "",
   });
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
 
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<SelectedSubject[]>([]);
@@ -142,6 +144,9 @@ const CreateMockFromExisting = () => {
 
   useEffect(() => {
     fetchSubjectsWithQuestions();
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => {
+      if (data) setClasses(data);
+    });
   }, []);
 
   const handleSubjectSelection = (subjectId: string, checked: boolean) => {
