@@ -27,9 +27,11 @@ interface Question {
 
 const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     subject_id: "",
+    class_id: "",
     duration_minutes: 30,
     passing_score: 70,
     marks_per_question: 1,
@@ -46,7 +48,16 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   const [assessmentQuestions, setAssessmentQuestions] = useState<any[]>([]);
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { fetchTeacherSubjects(); }, [teacherId]);
+  useEffect(() => {
+    fetchTeacherSubjects();
+    fetchClasses();
+  }, [teacherId]);
+
+  const fetchClasses = async () => {
+    const { data } = await supabase.from("classes").select("id, name").order("name");
+    if (data) setClasses(data);
+  };
+
 
   useEffect(() => {
     if (showBankImport && formData.subject_id) {
