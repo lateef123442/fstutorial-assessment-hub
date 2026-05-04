@@ -58,6 +58,7 @@ export type Database = {
       }
       assessments: {
         Row: {
+          class_id: string | null
           created_at: string | null
           duration_minutes: number
           id: string
@@ -72,6 +73,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          class_id?: string | null
           created_at?: string | null
           duration_minutes: number
           id?: string
@@ -86,6 +88,7 @@ export type Database = {
           title: string
         }
         Update: {
+          class_id?: string | null
           created_at?: string | null
           duration_minutes?: number
           id?: string
@@ -100,6 +103,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "assessments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assessments_subject_id_fkey"
             columns: ["subject_id"]
@@ -169,6 +179,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      classes: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       mock_exam_attempts: {
         Row: {
@@ -323,6 +360,7 @@ export type Database = {
       }
       mock_exams: {
         Row: {
+          class_id: string | null
           created_at: string | null
           created_by: string
           description: string | null
@@ -336,6 +374,7 @@ export type Database = {
           total_duration_minutes: number
         }
         Insert: {
+          class_id?: string | null
           created_at?: string | null
           created_by: string
           description?: string | null
@@ -349,6 +388,7 @@ export type Database = {
           total_duration_minutes?: number
         }
         Update: {
+          class_id?: string | null
           created_at?: string | null
           created_by?: string
           description?: string | null
@@ -363,6 +403,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "mock_exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "mock_exams_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -373,24 +420,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          class_id: string | null
           created_at: string | null
           email: string
           full_name: string
           id: string
         }
         Insert: {
+          class_id?: string | null
           created_at?: string | null
           email: string
           full_name: string
           id: string
         }
         Update: {
+          class_id?: string | null
           created_at?: string | null
           email?: string
           full_name?: string
           id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       question_bank: {
         Row: {
@@ -573,6 +631,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_class: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
