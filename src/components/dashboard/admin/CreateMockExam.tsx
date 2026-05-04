@@ -41,9 +41,11 @@ const CreateMockExam = () => {
     total_duration_minutes: 180,
     marks_per_question: 1,
     is_active: true,
+    class_id: "",
   });
 
   const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<SubjectData[]>([]);
   const [user, setUser] = useState<User | null>(null);
