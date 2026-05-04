@@ -126,6 +126,19 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
   }, []);
 
   const fetchAssessments = async () => {
+    // Get student's class first
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("class_id")
+      .eq("id", studentId)
+      .maybeSingle();
+
+    if (!profile?.class_id) {
+      setAssessments([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("assessments")
       .select(`
@@ -135,6 +148,7 @@ const AvailableAssessments = ({ studentId }: AvailableAssessmentsProps) => {
       `)
       .eq("is_active", true)
       .eq("is_mock_exam", false)
+      .eq("class_id", profile.class_id)
       .order("created_at", { ascending: false });
 
     if (error) {
