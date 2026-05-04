@@ -364,6 +364,22 @@ const CreateMockExam = () => {
             </div>
 
             <div>
+              <Label htmlFor="class_id">Class *</Label>
+              <select
+                id="class_id"
+                value={formData.class_id}
+                onChange={(e) => setFormData({ ...formData, class_id: e.target.value })}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                required
+              >
+                <option value="">Select class</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <Label className="text-base font-semibold">
                 Select 4 Subjects ({selectedSubjectIds.length}/4 selected)
               </Label>
