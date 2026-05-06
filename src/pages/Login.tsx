@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -39,9 +39,16 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: "", password: "", fullName: "" });
+  const [formData, setFormData] = useState({ email: "", password: "", fullName: "", classId: "" });
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
 
-  const set = (key: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  useEffect(() => {
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => {
+      setClasses(data || []);
+    });
+  }, []);
+
+  const set = (key: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setFormData((prev) => ({ ...prev, [key]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,11 +60,15 @@ const Login = () => {
         return;
       }
       if (isSignUp) {
+        if (!formData.classId) {
+          toast.error("Please select your class.");
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            data: { full_name: formData.fullName },
+            data: { full_name: formData.fullName, class_id: formData.classId },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
@@ -163,6 +174,30 @@ const Login = () => {
                   required
                   autoComplete="name"
                 />
+              </div>
+            )}
+
+            {isSignUp && (
+              <div className="ln-field ln-field-animate">
+                <label className="ln-label" htmlFor="classId">Class</label>
+                <select
+                  id="classId"
+                  className="ln-input"
+                  value={formData.classId}
+                  onChange={set("classId")}
+                  required
+                  style={{ appearance: "none" }}
+                >
+                  <option value="">Select your class</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id} style={{ color: "#000" }}>{c.name}</option>
+                  ))}
+                </select>
+                {classes.length === 0 && (
+                  <p style={{ fontSize: 11, color: "var(--tx3)", marginTop: 4 }}>
+                    No classes available yet. Ask your admin to create one.
+                  </p>
+                )}
               </div>
             )}
 
