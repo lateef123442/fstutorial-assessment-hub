@@ -631,6 +631,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_practice_questions: {
+        Args: { _subject_id: string }
+        Returns: {
+          assessment_id: string
+          correct_answer: string
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject_id: string
+          subject_name: string
+        }[]
+      }
+      get_review_questions: {
+        Args: { _attempt_id: string }
+        Returns: {
+          assessment_id: string
+          correct_answer: string
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+        }[]
+      }
       get_user_class: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

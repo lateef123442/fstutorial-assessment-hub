@@ -68,18 +68,13 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
       });
     }
 
-    // Fetch from assessment questions for student's class only
-    let aqQuery = supabase
-      .from("questions")
-      .select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, assessment_id, assessments!inner(subject_id, class_id, subjects(name))")
-      .eq("assessments.class_id", profile.class_id);
-    if (selectedSubject !== "all") aqQuery = aqQuery.eq("assessments.subject_id", selectedSubject);
-    const { data: aqData } = await aqQuery;
+    // Fetch from assessment questions for student's class only (via secure RPC)
+    const { data: aqData } = await supabase.rpc("get_practice_questions", {
+      _subject_id: selectedSubject === "all" ? null : selectedSubject,
+    });
     if (aqData) {
-      aqData.forEach((q: any) => {
-        const subjectName = q.assessments?.subjects?.name;
-        if (selectedSubject !== "all" && !subjectName) return;
-        allQuestions.push({ id: `aq-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Assessment", subject_name: subjectName });
+      (aqData as any[]).forEach((q: any) => {
+        allQuestions.push({ id: `aq-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Assessment", subject_name: q.subject_name });
       });
     }
 
