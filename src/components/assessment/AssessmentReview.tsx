@@ -78,17 +78,15 @@ const AssessmentReview = () => {
 
       setAttempt(attemptData as Attempt);
 
-      // Fetch questions
+      // Fetch questions via secure RPC
       const { data: questionsData, error: questionsError } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("assessment_id", attemptData.assessment_id);
+        .rpc("get_review_questions", { _attempt_id: attemptId });
 
       if (questionsError) {
         console.error("Questions fetch error:", questionsError);
         toast.error("Failed to load questions");
       } else {
-        setQuestions(questionsData || []);
+        setQuestions((questionsData as any) || []);
       }
 
       // Fetch answers
