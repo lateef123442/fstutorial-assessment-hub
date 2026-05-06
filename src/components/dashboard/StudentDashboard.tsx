@@ -10,6 +10,7 @@ import StudentMockExams from "./student/StudentMockExams";
 import MyResults from "./student/MyResults";
 import PracticeQuestions from "./student/PracticeQuestions";
 import Leaderboard from "./Leaderboard";
+import MyClassProgress from "./student/MyClassProgress";
 
 interface StudentDashboardProps {
   user: User;
