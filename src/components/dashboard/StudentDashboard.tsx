@@ -65,6 +65,38 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <div
+          className={`mb-6 rounded-xl border p-5 flex items-start gap-4 ${
+            className ? "bg-primary/5 border-primary/20" : "bg-destructive/5 border-destructive/30"
+          }`}
+        >
+          <div
+            className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+              className ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"
+            }`}
+          >
+            <GraduationCap className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">My Class</p>
+            {className ? (
+              <>
+                <h2 className="text-xl font-bold mt-0.5 truncate">{className}</h2>
+                {classDescription && <p className="text-sm text-muted-foreground mt-1">{classDescription}</p>}
+                {fullName && <p className="text-xs text-muted-foreground mt-2">Welcome, {fullName}</p>}
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold mt-0.5 text-destructive">No class assigned</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Please contact your administrator to be assigned to a class. You won't see
+                  assessments or mock exams until then.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
         <Tabs defaultValue="assessments">
           <TabsList className="flex w-full mb-8">  {/* Horizontal tabs in a single line */}
             <TabsTrigger value="assessments" className="flex items-center gap-2">
