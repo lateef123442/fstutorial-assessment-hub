@@ -60,11 +60,15 @@ const Login = () => {
         return;
       }
       if (isSignUp) {
+        if (!formData.classId) {
+          toast.error("Please select your class.");
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            data: { full_name: formData.fullName },
+            data: { full_name: formData.fullName, class_id: formData.classId },
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
