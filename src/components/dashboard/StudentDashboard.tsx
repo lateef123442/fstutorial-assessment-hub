@@ -17,16 +17,20 @@ interface StudentDashboardProps {
 
 const StudentDashboard = ({ user }: StudentDashboardProps) => {
   const [className, setClassName] = useState<string | null>(null);
+  const [classDescription, setClassDescription] = useState<string | null>(null);
+  const [fullName, setFullName] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchClass = async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("class_id, classes(name)")
+        .select("full_name, class_id, classes(name, description)")
         .eq("id", user.id)
         .maybeSingle();
-      const cls = (profile as any)?.classes?.name;
-      setClassName(cls || null);
+      const cls = (profile as any)?.classes;
+      setClassName(cls?.name || null);
+      setClassDescription(cls?.description || null);
+      setFullName((profile as any)?.full_name || null);
     };
     fetchClass();
   }, [user.id]);
