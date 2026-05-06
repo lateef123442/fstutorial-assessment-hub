@@ -18,6 +18,7 @@ interface StudentDashboardProps {
 
 const StudentDashboard = ({ user }: StudentDashboardProps) => {
   const [className, setClassName] = useState<string | null>(null);
+  const [classId, setClassId] = useState<string | null>(null);
   const [classDescription, setClassDescription] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
       const cls = (profile as any)?.classes;
       setClassName(cls?.name || null);
       setClassDescription(cls?.description || null);
+      setClassId((profile as any)?.class_id || null);
       setFullName((profile as any)?.full_name || null);
     };
     fetchClass();
