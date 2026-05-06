@@ -177,6 +177,30 @@ const Login = () => {
               </div>
             )}
 
+            {isSignUp && (
+              <div className="ln-field ln-field-animate">
+                <label className="ln-label" htmlFor="classId">Class</label>
+                <select
+                  id="classId"
+                  className="ln-input"
+                  value={formData.classId}
+                  onChange={set("classId")}
+                  required
+                  style={{ appearance: "none" }}
+                >
+                  <option value="">Select your class</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id} style={{ color: "#000" }}>{c.name}</option>
+                  ))}
+                </select>
+                {classes.length === 0 && (
+                  <p style={{ fontSize: 11, color: "var(--tx3)", marginTop: 4 }}>
+                    No classes available yet. Ask your admin to create one.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="ln-field">
               <label className="ln-label" htmlFor="email">Email address</label>
               <input
