@@ -118,6 +118,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <Shuffle className="w-3 h-4" />
               Practice
             </TabsTrigger>
+            <TabsTrigger value="progress" className="flex items-center gap-2">
+              <TrendingUp className="w-3 h-4" />
+              My Progress
+            </TabsTrigger>
             <TabsTrigger value="leaderboard" className="flex items-center gap-2">
               <BarChart3 className="w-3 h-4" />
               Leaderboard
