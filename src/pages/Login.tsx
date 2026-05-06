@@ -39,9 +39,16 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: "", password: "", fullName: "" });
+  const [formData, setFormData] = useState({ email: "", password: "", fullName: "", classId: "" });
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
 
-  const set = (key: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  useEffect(() => {
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => {
+      setClasses(data || []);
+    });
+  }, []);
+
+  const set = (key: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setFormData((prev) => ({ ...prev, [key]: e.target.value }));
 
   const handleSubmit = async (e: React.FormEvent) => {
