@@ -227,6 +227,9 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
+                {classes.length === 0 && (
+                  <p className="text-xs text-destructive mt-1">You aren't assigned to any class. Ask an admin to assign you.</p>
+                )}
               </div>
               <div><Label htmlFor="duration">Duration (minutes)</Label><Input id="duration" type="number" value={formData.duration_minutes} onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })} required /></div>
               <div><Label htmlFor="passing">Passing Score (%)</Label><Input id="passing" type="number" value={formData.passing_score} onChange={(e) => setFormData({ ...formData, passing_score: parseInt(e.target.value) })} required /></div>
