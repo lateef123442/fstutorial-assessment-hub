@@ -65,6 +65,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       case "users": return <ManageAllUsers />;
       case "leaderboard": return <Leaderboard />;
       case "admins": return <ManageAdmins />;
+      case "materials": return <ClassMaterials userId={user.id} mode="admin" />;
       default: return <Analytics />;
     }
   };
