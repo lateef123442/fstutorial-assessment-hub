@@ -180,6 +180,42 @@ export type Database = {
           },
         ]
       }
+      class_materials: {
+        Row: {
+          class_id: string
+          created_at: string
+          description: string | null
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          title: string
+          uploaded_by: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          description?: string | null
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          title: string
+          uploaded_by: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          description?: string | null
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          title?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -569,6 +605,27 @@ export type Database = {
         }
         Relationships: []
       }
+      teacher_classes: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          teacher_id: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          teacher_id: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          teacher_id?: string
+        }
+        Relationships: []
+      }
       teacher_subjects: {
         Row: {
           created_at: string | null
@@ -665,6 +722,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      teacher_in_class: {
+        Args: { _class: string; _teacher: string }
         Returns: boolean
       }
     }
