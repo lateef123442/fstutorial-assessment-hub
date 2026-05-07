@@ -69,6 +69,11 @@ const ManageTeachers = () => {
 
       if (subjectsError) throw subjectsError;
 
+      const { data: teacherClassRows } = await supabase
+        .from("teacher_classes")
+        .select("teacher_id, class_id, classes(id, name)")
+        .in("teacher_id", teacherIds);
+
       // Combine the data
       const combinedData = profiles?.map(profile => ({
         user_id: profile.id,
@@ -76,7 +81,8 @@ const ManageTeachers = () => {
           full_name: profile.full_name,
           email: profile.email
         },
-        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || []
+        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || [],
+        teacher_classes: (teacherClassRows || []).filter((tc: any) => tc.teacher_id === profile.id),
       })) || [];
 
       setTeachers(combinedData);
