@@ -36,6 +36,7 @@ const tabs = [
   { value: "questionbank", icon: HelpCircle, label: "Q-Bank" },
   { value: "users", icon: UserCog, label: "Users" },
   { value: "leaderboard", icon: Trophy, label: "Leaderboard" },
+  { value: "materials", icon: Library, label: "Materials" },
   { value: "admins", icon: ShieldCheck, label: "Admins" },
 ];
 
