@@ -54,8 +54,15 @@ const CreateAssessment = ({ teacherId, onCreated }: CreateAssessmentProps) => {
   }, [teacherId]);
 
   const fetchClasses = async () => {
-    const { data } = await supabase.from("classes").select("id, name").order("name");
-    if (data) setClasses(data);
+    const { data: tc } = await supabase
+      .from("teacher_classes")
+      .select("class_id, classes(id, name)")
+      .eq("teacher_id", teacherId);
+    const list = (tc || [])
+      .map((row: any) => row.classes)
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.name.localeCompare(b.name));
+    setClasses(list);
   };
 
 
