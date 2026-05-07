@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList, HelpCircle } from "lucide-react";
+import { BookOpen, FileText, LogOut, GraduationCap, ClipboardList, HelpCircle, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import CreateAssessment from "./teacher/CreateAssessment";
 import ViewAttempts from "./teacher/ViewAttempts";
 import ScheduleReminders from "./teacher/ScheduleReminders";
 import TeacherQuestionBank from "./teacher/TeacherQuestionBank";
+import ClassMaterials from "./ClassMaterials";
 
 interface TeacherDashboardProps {
   user: User;
