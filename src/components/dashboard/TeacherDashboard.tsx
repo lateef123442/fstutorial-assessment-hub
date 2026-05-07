@@ -99,6 +99,12 @@ const TeacherDashboard = ({ user }: TeacherDashboardProps) => {
               <TeacherQuestionBank teacherId={user.id} />
             </div>
           )}
+
+          {activeTab === "materials" && (
+            <div className="animate-fade-in">
+              <ClassMaterials userId={user.id} mode="teacher" />
+            </div>
+          )}
         </Tabs>
       </main>
     </div>
