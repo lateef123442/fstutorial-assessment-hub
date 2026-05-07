@@ -123,6 +123,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <TrendingUp className="w-3 h-4" />
               My Progress
             </TabsTrigger>
+            <TabsTrigger value="materials" className="flex items-center gap-2">
+              <Library className="w-3 h-4" />
+              Materials
+            </TabsTrigger>
             <TabsTrigger value="leaderboard" className="flex items-center gap-2">
               <BarChart3 className="w-3 h-4" />
               Leaderboard
