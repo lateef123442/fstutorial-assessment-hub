@@ -18,10 +18,23 @@ const ManageTeachers = () => {
     password: "",
   });
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string; password?: string }>({});
+  const [allClasses, setAllClasses] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchTeachers();
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => setAllClasses(data || []));
   }, []);
+
+  const toggleClassAssignment = async (teacherId: string, classId: string, assigned: boolean) => {
+    if (assigned) {
+      const { error } = await supabase.from("teacher_classes").delete().eq("teacher_id", teacherId).eq("class_id", classId);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      const { error } = await supabase.from("teacher_classes").insert({ teacher_id: teacherId, class_id: classId });
+      if (error) { toast.error(error.message); return; }
+    }
+    fetchTeachers();
+  };
 
   const fetchTeachers = async () => {
     try {
