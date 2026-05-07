@@ -249,6 +249,31 @@ const ManageTeachers = () => {
                         </div>
                       </div>
                     )}
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Assigned Classes:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allClasses.length === 0 && (
+                          <span className="text-xs text-muted-foreground">No classes exist yet</span>
+                        )}
+                        {allClasses.map((c) => {
+                          const assigned = teacher.teacher_classes?.some((tc: any) => tc.class_id === c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => toggleClassAssignment(teacher.user_id, c.id, assigned)}
+                              className={`px-2 py-1 rounded-md text-xs border transition-colors ${
+                                assigned
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background hover:bg-muted border-input"
+                              }`}
+                            >
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   <Button 
                     variant="destructive" 
