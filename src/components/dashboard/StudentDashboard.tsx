@@ -153,6 +153,11 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
             <MyClassProgress studentId={user.id} classId={classId} />
           </TabsContent>
 
+          <TabsContent value="materials" className="animate-fade-in">
+            <ClassMaterials userId={user.id} mode="student" />
+          </TabsContent>
+
+
           <TabsContent value="leaderboard" className="animate-fade-in">
             <Leaderboard />
           </TabsContent>
