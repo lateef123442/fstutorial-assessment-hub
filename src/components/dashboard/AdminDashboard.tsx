@@ -17,6 +17,7 @@ import ManageQuestionBank from "./admin/ManageQuestionBank";
 import ManageAllUsers from "./admin/ManageAllUsers";
 import ManageClasses from "./admin/ManageClasses";
 import Leaderboard from "./Leaderboard";
+import ClassMaterials from "./ClassMaterials";
 
 interface AdminDashboardProps {
   user: User;
