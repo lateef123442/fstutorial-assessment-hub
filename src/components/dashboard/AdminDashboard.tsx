@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle, UserCog, Trophy, School } from "lucide-react";
+import { Users, BookOpen, GraduationCap, BarChart3, LogOut, FileText, ClipboardList, Database, ShieldCheck, HelpCircle, UserCog, Trophy, School, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import ManageQuestionBank from "./admin/ManageQuestionBank";
 import ManageAllUsers from "./admin/ManageAllUsers";
 import ManageClasses from "./admin/ManageClasses";
 import Leaderboard from "./Leaderboard";
+import ClassMaterials from "./ClassMaterials";
 
 interface AdminDashboardProps {
   user: User;
@@ -35,6 +36,7 @@ const tabs = [
   { value: "questionbank", icon: HelpCircle, label: "Q-Bank" },
   { value: "users", icon: UserCog, label: "Users" },
   { value: "leaderboard", icon: Trophy, label: "Leaderboard" },
+  { value: "materials", icon: Library, label: "Materials" },
   { value: "admins", icon: ShieldCheck, label: "Admins" },
 ];
 
@@ -63,6 +65,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       case "users": return <ManageAllUsers />;
       case "leaderboard": return <Leaderboard />;
       case "admins": return <ManageAdmins />;
+      case "materials": return <ClassMaterials userId={user.id} mode="admin" />;
       default: return <Analytics />;
     }
   };

@@ -18,10 +18,23 @@ const ManageTeachers = () => {
     password: "",
   });
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string; password?: string }>({});
+  const [allClasses, setAllClasses] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchTeachers();
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => setAllClasses(data || []));
   }, []);
+
+  const toggleClassAssignment = async (teacherId: string, classId: string, assigned: boolean) => {
+    if (assigned) {
+      const { error } = await supabase.from("teacher_classes").delete().eq("teacher_id", teacherId).eq("class_id", classId);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      const { error } = await supabase.from("teacher_classes").insert({ teacher_id: teacherId, class_id: classId });
+      if (error) { toast.error(error.message); return; }
+    }
+    fetchTeachers();
+  };
 
   const fetchTeachers = async () => {
     try {
@@ -56,6 +69,11 @@ const ManageTeachers = () => {
 
       if (subjectsError) throw subjectsError;
 
+      const { data: teacherClassRows } = await supabase
+        .from("teacher_classes")
+        .select("teacher_id, class_id, classes(id, name)")
+        .in("teacher_id", teacherIds);
+
       // Combine the data
       const combinedData = profiles?.map(profile => ({
         user_id: profile.id,
@@ -63,7 +81,8 @@ const ManageTeachers = () => {
           full_name: profile.full_name,
           email: profile.email
         },
-        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || []
+        teacher_subjects: teacherSubjects?.filter((ts: any) => ts.teacher_id === profile.id) || [],
+        teacher_classes: (teacherClassRows || []).filter((tc: any) => tc.teacher_id === profile.id),
       })) || [];
 
       setTeachers(combinedData);
@@ -230,6 +249,31 @@ const ManageTeachers = () => {
                         </div>
                       </div>
                     )}
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Assigned Classes:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {allClasses.length === 0 && (
+                          <span className="text-xs text-muted-foreground">No classes exist yet</span>
+                        )}
+                        {allClasses.map((c) => {
+                          const assigned = teacher.teacher_classes?.some((tc: any) => tc.class_id === c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => toggleClassAssignment(teacher.user_id, c.id, assigned)}
+                              className={`px-2 py-1 rounded-md text-xs border transition-colors ${
+                                assigned
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background hover:bg-muted border-input"
+                              }`}
+                            >
+                              {c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                   <Button 
                     variant="destructive" 

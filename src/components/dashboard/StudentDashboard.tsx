@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Trophy, LogOut, GraduationCap, Shuffle, BarChart3, TrendingUp } from "lucide-react";
+import { FileText, Trophy, LogOut, GraduationCap, Shuffle, BarChart3, TrendingUp, Library } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import MyResults from "./student/MyResults";
 import PracticeQuestions from "./student/PracticeQuestions";
 import Leaderboard from "./Leaderboard";
 import MyClassProgress from "./student/MyClassProgress";
+import ClassMaterials from "./ClassMaterials";
 
 interface StudentDashboardProps {
   user: User;
@@ -122,6 +123,10 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
               <TrendingUp className="w-3 h-4" />
               My Progress
             </TabsTrigger>
+            <TabsTrigger value="materials" className="flex items-center gap-2">
+              <Library className="w-3 h-4" />
+              Materials
+            </TabsTrigger>
             <TabsTrigger value="leaderboard" className="flex items-center gap-2">
               <BarChart3 className="w-3 h-4" />
               Leaderboard
@@ -147,6 +152,11 @@ const StudentDashboard = ({ user }: StudentDashboardProps) => {
           <TabsContent value="progress" className="animate-fade-in">
             <MyClassProgress studentId={user.id} classId={classId} />
           </TabsContent>
+
+          <TabsContent value="materials" className="animate-fade-in">
+            <ClassMaterials userId={user.id} mode="student" />
+          </TabsContent>
+
 
           <TabsContent value="leaderboard" className="animate-fade-in">
             <Leaderboard />
