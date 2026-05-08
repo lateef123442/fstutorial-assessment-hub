@@ -12,10 +12,12 @@ import { Plus, Trash2, BookOpen, Edit, Save, X } from "lucide-react";
 
 const ManageQuestionBank = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
+  const [selectedClassId, setSelectedClassId] = useState<string | undefined>(undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" });
   const [formData, setFormData] = useState({
@@ -27,7 +29,7 @@ const ManageQuestionBank = () => {
     correct_answer: "A",
   });
 
-  useEffect(() => { fetchSubjects(); }, []);
+  useEffect(() => { fetchSubjects(); fetchClasses(); }, []);
   useEffect(() => { fetchQuestions(); }, [selectedSubjectFilter]);
 
   const fetchSubjects = async () => {
@@ -35,8 +37,13 @@ const ManageQuestionBank = () => {
     if (!error && data) setSubjects(data);
   };
 
+  const fetchClasses = async () => {
+    const { data } = await supabase.from("classes").select("id, name").order("name");
+    setClasses(data || []);
+  };
+
   const fetchQuestions = async () => {
-    let query = supabase.from("question_bank").select("*, subjects(name), profiles:added_by(full_name)").order("created_at", { ascending: false });
+    let query = supabase.from("question_bank").select("*, subjects(name), classes(name), profiles:added_by(full_name)").order("created_at", { ascending: false });
     if (selectedSubjectFilter !== "all") query = query.eq("subject_id", selectedSubjectFilter);
     const { data, error } = await query;
     if (error) { toast.error("Failed to load questions"); } else { setQuestions(data || []); }
@@ -45,13 +52,15 @@ const ManageQuestionBank = () => {
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubjectId) { toast.error("Please select a subject"); return; }
+    if (!selectedClassId) { toast.error("Please select a class"); return; }
     if (!formData.question_text.trim() || !formData.option_a.trim() || !formData.option_b.trim() || !formData.option_c.trim() || !formData.option_d.trim()) { toast.error("Please fill in all fields"); return; }
     setLoading(true);
     try {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("question_bank").insert({
-        subject_id: selectedSubjectId, question_text: formData.question_text.trim(),
+        subject_id: selectedSubjectId, class_id: selectedClassId,
+        question_text: formData.question_text.trim(),
         option_a: formData.option_a.trim(), option_b: formData.option_b.trim(),
         option_c: formData.option_c.trim(), option_d: formData.option_d.trim(),
         correct_answer: formData.correct_answer, added_by: user.id,
