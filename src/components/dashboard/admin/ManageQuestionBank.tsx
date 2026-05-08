@@ -12,10 +12,12 @@ import { Plus, Trash2, BookOpen, Edit, Save, X } from "lucide-react";
 
 const ManageQuestionBank = () => {
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(undefined);
+  const [selectedClassId, setSelectedClassId] = useState<string | undefined>(undefined);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" });
   const [formData, setFormData] = useState({
@@ -27,7 +29,7 @@ const ManageQuestionBank = () => {
     correct_answer: "A",
   });
 
-  useEffect(() => { fetchSubjects(); }, []);
+  useEffect(() => { fetchSubjects(); fetchClasses(); }, []);
   useEffect(() => { fetchQuestions(); }, [selectedSubjectFilter]);
 
   const fetchSubjects = async () => {
@@ -35,8 +37,13 @@ const ManageQuestionBank = () => {
     if (!error && data) setSubjects(data);
   };
 
+  const fetchClasses = async () => {
+    const { data } = await supabase.from("classes").select("id, name").order("name");
+    setClasses(data || []);
+  };
+
   const fetchQuestions = async () => {
-    let query = supabase.from("question_bank").select("*, subjects(name), profiles:added_by(full_name)").order("created_at", { ascending: false });
+    let query = supabase.from("question_bank").select("*, subjects(name), classes(name), profiles:added_by(full_name)").order("created_at", { ascending: false });
     if (selectedSubjectFilter !== "all") query = query.eq("subject_id", selectedSubjectFilter);
     const { data, error } = await query;
     if (error) { toast.error("Failed to load questions"); } else { setQuestions(data || []); }
@@ -45,13 +52,15 @@ const ManageQuestionBank = () => {
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSubjectId) { toast.error("Please select a subject"); return; }
+    if (!selectedClassId) { toast.error("Please select a class"); return; }
     if (!formData.question_text.trim() || !formData.option_a.trim() || !formData.option_b.trim() || !formData.option_c.trim() || !formData.option_d.trim()) { toast.error("Please fill in all fields"); return; }
     setLoading(true);
     try {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("question_bank").insert({
-        subject_id: selectedSubjectId, question_text: formData.question_text.trim(),
+        subject_id: selectedSubjectId, class_id: selectedClassId,
+        question_text: formData.question_text.trim(),
         option_a: formData.option_a.trim(), option_b: formData.option_b.trim(),
         option_c: formData.option_c.trim(), option_d: formData.option_d.trim(),
         correct_answer: formData.correct_answer, added_by: user.id,
@@ -89,12 +98,21 @@ const ManageQuestionBank = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddQuestion} className="space-y-4">
-            <div>
-              <Label>Subject</Label>
-              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
-              </Select>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Subject</Label>
+                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Class</Label>
+                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>{classes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
             </div>
             <div><Label>Question Text</Label><Textarea value={formData.question_text} onChange={(e) => setFormData({ ...formData, question_text: e.target.value })} maxLength={2000} required /></div>
             <div className="grid md:grid-cols-2 gap-4">
@@ -160,7 +178,7 @@ const ManageQuestionBank = () => {
                   ) : (
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="text-xs text-muted-foreground mb-1">{q.subjects?.name} • Added by {q.profiles?.full_name}</p>
+                        <p className="text-xs text-muted-foreground mb-1">{q.subjects?.name} • {q.classes?.name || "No class"} • Added by {q.profiles?.full_name}</p>
                         <p className="font-medium mb-2">{i + 1}. {q.question_text}</p>
                         <div className="grid grid-cols-2 gap-1 text-sm">
                           <p className={q.correct_answer === "A" ? "text-green-600 font-semibold" : ""}>A: {q.option_a}</p>
