@@ -105,14 +105,25 @@ const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
         <CardContent>
           {subjects.length === 0 ? (
             <p className="text-muted-foreground">No subjects assigned to you yet. Contact your admin.</p>
+          ) : classes.length === 0 ? (
+            <p className="text-muted-foreground">You aren't assigned to any class. Ask an admin to assign you.</p>
           ) : (
             <form onSubmit={handleAddQuestion} className="space-y-4">
-              <div>
-                <Label>Subject</Label>
-                <Select value={formData.subject_id} onValueChange={(v) => setFormData({ ...formData, subject_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                  <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
-                </Select>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Subject</Label>
+                  <Select value={formData.subject_id} onValueChange={(v) => setFormData({ ...formData, subject_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                    <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Class</Label>
+                  <Select value={formData.class_id} onValueChange={(v) => setFormData({ ...formData, class_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                    <SelectContent>{classes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                  </Select>
+                </div>
               </div>
               <div><Label>Question Text</Label><Textarea value={formData.question_text} onChange={(e) => setFormData({ ...formData, question_text: e.target.value })} maxLength={2000} required /></div>
               <div className="grid md:grid-cols-2 gap-4">
