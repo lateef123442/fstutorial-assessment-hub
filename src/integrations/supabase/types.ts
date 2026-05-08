@@ -489,6 +489,7 @@ export type Database = {
       question_bank: {
         Row: {
           added_by: string
+          class_id: string | null
           correct_answer: string
           created_at: string | null
           id: string
@@ -501,6 +502,7 @@ export type Database = {
         }
         Insert: {
           added_by: string
+          class_id?: string | null
           correct_answer: string
           created_at?: string | null
           id?: string
@@ -513,6 +515,7 @@ export type Database = {
         }
         Update: {
           added_by?: string
+          class_id?: string | null
           correct_answer?: string
           created_at?: string | null
           id?: string
