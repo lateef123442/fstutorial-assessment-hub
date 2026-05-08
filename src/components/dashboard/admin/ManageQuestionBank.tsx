@@ -178,7 +178,7 @@ const ManageQuestionBank = () => {
                   ) : (
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <p className="text-xs text-muted-foreground mb-1">{q.subjects?.name} • Added by {q.profiles?.full_name}</p>
+                        <p className="text-xs text-muted-foreground mb-1">{q.subjects?.name} • {q.classes?.name || "No class"} • Added by {q.profiles?.full_name}</p>
                         <p className="font-medium mb-2">{i + 1}. {q.question_text}</p>
                         <div className="grid grid-cols-2 gap-1 text-sm">
                           <p className={q.correct_answer === "A" ? "text-green-600 font-semibold" : ""}>A: {q.option_a}</p>
