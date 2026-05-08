@@ -98,12 +98,21 @@ const ManageQuestionBank = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAddQuestion} className="space-y-4">
-            <div>
-              <Label>Subject</Label>
-              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
-              </Select>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Subject</Label>
+                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectContent>{subjects.map((s) => (<SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Class</Label>
+                <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                  <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
+                  <SelectContent>{classes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
             </div>
             <div><Label>Question Text</Label><Textarea value={formData.question_text} onChange={(e) => setFormData({ ...formData, question_text: e.target.value })} maxLength={2000} required /></div>
             <div className="grid md:grid-cols-2 gap-4">
