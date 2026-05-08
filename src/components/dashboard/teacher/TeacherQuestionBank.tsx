@@ -16,6 +16,7 @@ interface TeacherQuestionBankProps {
 
 const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>("all");
@@ -23,6 +24,7 @@ const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
   const [editData, setEditData] = useState({ question_text: "", option_a: "", option_b: "", option_c: "", option_d: "", correct_answer: "A" });
   const [formData, setFormData] = useState({
     subject_id: "",
+    class_id: "",
     question_text: "",
     option_a: "",
     option_b: "",
@@ -31,7 +33,7 @@ const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
     correct_answer: "A",
   });
 
-  useEffect(() => { fetchMySubjects(); }, []);
+  useEffect(() => { fetchMySubjects(); fetchMyClasses(); }, []);
   useEffect(() => { fetchQuestions(); }, [selectedSubjectFilter]);
 
   const fetchMySubjects = async () => {
@@ -39,11 +41,17 @@ const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
     if (!error && data) setSubjects(data.map((ts: any) => ts.subjects).filter(Boolean));
   };
 
+  const fetchMyClasses = async () => {
+    const { data } = await supabase.from("teacher_classes").select("class_id, classes(id, name)").eq("teacher_id", teacherId);
+    const list = (data || []).map((r: any) => r.classes).filter(Boolean).sort((a: any, b: any) => a.name.localeCompare(b.name));
+    setClasses(list);
+  };
+
   const fetchQuestions = async () => {
     const { data: mySubjects } = await supabase.from("teacher_subjects").select("subject_id").eq("teacher_id", teacherId);
     const subjectIds = mySubjects?.map((s) => s.subject_id) || [];
     if (subjectIds.length === 0) { setQuestions([]); return; }
-    let query = supabase.from("question_bank").select("*, subjects(name), profiles:added_by(full_name)").in("subject_id", subjectIds).order("created_at", { ascending: false });
+    let query = supabase.from("question_bank").select("*, subjects(name), classes(name), profiles:added_by(full_name)").in("subject_id", subjectIds).order("created_at", { ascending: false });
     if (selectedSubjectFilter !== "all") query = query.eq("subject_id", selectedSubjectFilter);
     const { data, error } = await query;
     if (!error) setQuestions(data || []);
@@ -52,11 +60,13 @@ const TeacherQuestionBank = ({ teacherId }: TeacherQuestionBankProps) => {
   const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.subject_id) { toast.error("Please select a subject"); return; }
+    if (!formData.class_id) { toast.error("Please select a class"); return; }
     if (!formData.question_text.trim() || !formData.option_a.trim() || !formData.option_b.trim() || !formData.option_c.trim() || !formData.option_d.trim()) { toast.error("Please fill in all fields"); return; }
     setLoading(true);
     try {
       const { error } = await supabase.from("question_bank").insert({
-        subject_id: formData.subject_id, question_text: formData.question_text.trim(),
+        subject_id: formData.subject_id, class_id: formData.class_id,
+        question_text: formData.question_text.trim(),
         option_a: formData.option_a.trim(), option_b: formData.option_b.trim(),
         option_c: formData.option_c.trim(), option_d: formData.option_d.trim(),
         correct_answer: formData.correct_answer, added_by: teacherId,
