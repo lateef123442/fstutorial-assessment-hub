@@ -123,41 +123,8 @@ const ManageSubjects = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Assign Teacher to Subject</CardTitle>
-          <CardDescription>Allocate subjects to teachers</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Select Teacher</Label>
-                <Select value={assignData.teacherId || undefined} onValueChange={(v) => setAssignData({ ...assignData, teacherId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose teacher" /></SelectTrigger>
-                  <SelectContent>
-                    {teachers.map((t) => (
-                      <SelectItem key={t.user_id} value={t.user_id}>{t.profiles?.full_name || t.profiles?.email}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Select Subject</Label>
-                <Select value={assignData.subjectId || undefined} onValueChange={(v) => setAssignData({ ...assignData, subjectId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose subject" /></SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Button onClick={handleAssignTeacher}>Assign Teacher</Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Subject ↔ Teacher allocation moved to "Manage Teachers" (subject chips per teacher).
+          Creating a subject here does NOT assign it to any teacher automatically. */}
 
       <Card>
         <CardHeader>
