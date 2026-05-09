@@ -31,6 +31,7 @@ const tabs = [
   { value: "teachers", icon: Users, label: "Teachers" },
   { value: "students", icon: GraduationCap, label: "Students" },
   { value: "classes", icon: School, label: "Classes" },
+  { value: "classalloc", icon: School, label: "Class Allocation" },
   { value: "subjects", icon: BookOpen, label: "Subjects" },
   { value: "createmock", icon: BookOpen, label: "New Mock" },
   { value: "mockfromexisting", icon: Database, label: "From Existing" },
