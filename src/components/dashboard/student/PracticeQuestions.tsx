@@ -95,11 +95,24 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
-  const handleSubmitAll = () => {
+  const handleSubmitAll = async () => {
     const unanswered = questions.filter((q) => !selectedAnswers[q.id]);
     if (unanswered.length > 0) {
       toast.error(`Please answer all questions. ${unanswered.length} unanswered.`);
       return;
+    }
+    // Reveal correct answers for question-bank items via secure RPC
+    const qbIds = questions
+      .filter((q) => q.id.startsWith("qb-") && !q.correct_answer)
+      .map((q) => q.id.replace(/^qb-/, ""));
+    if (qbIds.length > 0) {
+      const { data: graded } = await supabase.rpc("grade_question_bank", { _question_ids: qbIds });
+      if (graded) {
+        const map = new Map<string, string>((graded as any[]).map((g) => [g.id, g.correct_answer]));
+        setQuestions((prev) => prev.map((q) => q.id.startsWith("qb-")
+          ? { ...q, correct_answer: map.get(q.id.replace(/^qb-/, "")) || q.correct_answer }
+          : q));
+      }
     }
     setSubmitted(true);
     toast.success("Answers submitted! Review your results.");
