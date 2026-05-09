@@ -60,6 +60,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       case "teachers": return <ManageTeachers />;
       case "students": return <ManageStudents />;
       case "classes": return <ManageClasses />;
+      case "classalloc": return <ManageClassAllocation />;
       case "subjects": return <ManageSubjects />;
       case "createmock": return <CreateMockExam />;
       case "mockfromexisting": return <CreateMockFromExisting />;
