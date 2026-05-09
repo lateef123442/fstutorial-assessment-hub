@@ -249,29 +249,54 @@ const ManageTeachers = () => {
                         </div>
                       </div>
                     )}
-                    <div className="mt-3">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Assigned Classes:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {allClasses.length === 0 && (
-                          <span className="text-xs text-muted-foreground">No classes exist yet</span>
-                        )}
-                        {allClasses.map((c) => {
-                          const assigned = teacher.teacher_classes?.some((tc: any) => tc.class_id === c.id);
-                          return (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => toggleClassAssignment(teacher.user_id, c.id, assigned)}
-                              className={`px-2 py-1 rounded-md text-xs border transition-colors ${
-                                assigned
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-background hover:bg-muted border-input"
-                              }`}
+                    <div className="mt-3 space-y-2">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Allocated Classes:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(!teacher.teacher_classes || teacher.teacher_classes.length === 0) && (
+                            <span className="text-xs text-muted-foreground italic">None allocated yet</span>
+                          )}
+                          {teacher.teacher_classes?.map((tc: any) => (
+                            <span
+                              key={tc.class_id}
+                              className="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground rounded-md text-xs"
                             >
-                              {c.name}
-                            </button>
-                          );
-                        })}
+                              {tc.classes?.name || allClasses.find(c => c.id === tc.class_id)?.name || "Class"}
+                              <button
+                                type="button"
+                                aria-label="Remove class"
+                                onClick={() => toggleClassAssignment(teacher.user_id, tc.class_id, true)}
+                                className="ml-1 rounded-full hover:bg-primary-foreground/20 px-1"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">Allocate a Class:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {allClasses.length === 0 && (
+                            <span className="text-xs text-muted-foreground">No classes exist yet</span>
+                          )}
+                          {allClasses
+                            .filter(c => !teacher.teacher_classes?.some((tc: any) => tc.class_id === c.id))
+                            .map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => toggleClassAssignment(teacher.user_id, c.id, false)}
+                                className="px-2 py-1 rounded-md text-xs border border-dashed border-input bg-background hover:bg-muted transition-colors"
+                              >
+                                + {c.name}
+                              </button>
+                            ))}
+                          {allClasses.length > 0 &&
+                            allClasses.every(c => teacher.teacher_classes?.some((tc: any) => tc.class_id === c.id)) && (
+                              <span className="text-xs text-muted-foreground italic">All classes allocated</span>
+                            )}
+                        </div>
                       </div>
                     </div>
                   </div>
