@@ -16,6 +16,7 @@ import ManageAdmins from "./admin/ManageAdmins";
 import ManageQuestionBank from "./admin/ManageQuestionBank";
 import ManageAllUsers from "./admin/ManageAllUsers";
 import ManageClasses from "./admin/ManageClasses";
+import ManageClassAllocation from "./admin/ManageClassAllocation";
 import Leaderboard from "./Leaderboard";
 import ClassMaterials from "./ClassMaterials";
 
