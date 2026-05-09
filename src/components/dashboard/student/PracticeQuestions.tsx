@@ -58,13 +58,13 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
       return;
     }
 
-    // Fetch from question bank (shared across classes)
-    let qbQuery = supabase.from("question_bank").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, subject_id, subjects(name)");
-    if (selectedSubject !== "all") qbQuery = qbQuery.eq("subject_id", selectedSubject);
-    const { data: qbData } = await qbQuery;
+    // Fetch from question bank via secure RPC (correct_answer hidden until submit)
+    const { data: qbData } = await supabase.rpc("get_question_bank_practice", {
+      _subject_id: selectedSubject === "all" ? null : selectedSubject,
+    });
     if (qbData) {
-      qbData.forEach((q: any) => {
-        allQuestions.push({ id: `qb-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Question Bank", subject_name: q.subjects?.name });
+      (qbData as any[]).forEach((q: any) => {
+        allQuestions.push({ id: `qb-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: "", source: "Question Bank", subject_name: q.subject_name });
       });
     }
 
