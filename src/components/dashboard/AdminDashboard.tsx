@@ -16,6 +16,7 @@ import ManageAdmins from "./admin/ManageAdmins";
 import ManageQuestionBank from "./admin/ManageQuestionBank";
 import ManageAllUsers from "./admin/ManageAllUsers";
 import ManageClasses from "./admin/ManageClasses";
+import ManageClassAllocation from "./admin/ManageClassAllocation";
 import Leaderboard from "./Leaderboard";
 import ClassMaterials from "./ClassMaterials";
 
@@ -30,6 +31,7 @@ const tabs = [
   { value: "teachers", icon: Users, label: "Teachers" },
   { value: "students", icon: GraduationCap, label: "Students" },
   { value: "classes", icon: School, label: "Classes" },
+  { value: "classalloc", icon: School, label: "Class Allocation" },
   { value: "subjects", icon: BookOpen, label: "Subjects" },
   { value: "createmock", icon: BookOpen, label: "New Mock" },
   { value: "mockfromexisting", icon: Database, label: "From Existing" },
@@ -58,6 +60,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       case "teachers": return <ManageTeachers />;
       case "students": return <ManageStudents />;
       case "classes": return <ManageClasses />;
+      case "classalloc": return <ManageClassAllocation />;
       case "subjects": return <ManageSubjects />;
       case "createmock": return <CreateMockExam />;
       case "mockfromexisting": return <CreateMockFromExisting />;
