@@ -706,6 +706,19 @@ export type Database = {
           subject_name: string
         }[]
       }
+      get_question_bank_practice: {
+        Args: { _subject_id: string }
+        Returns: {
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_text: string
+          subject_id: string
+          subject_name: string
+        }[]
+      }
       get_review_questions: {
         Args: { _attempt_id: string }
         Returns: {
@@ -720,6 +733,13 @@ export type Database = {
         }[]
       }
       get_user_class: { Args: { _user_id: string }; Returns: string }
+      grade_question_bank: {
+        Args: { _question_ids: string[] }
+        Returns: {
+          correct_answer: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -58,13 +58,13 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
       return;
     }
 
-    // Fetch from question bank (shared across classes)
-    let qbQuery = supabase.from("question_bank").select("id, question_text, option_a, option_b, option_c, option_d, correct_answer, subject_id, subjects(name)");
-    if (selectedSubject !== "all") qbQuery = qbQuery.eq("subject_id", selectedSubject);
-    const { data: qbData } = await qbQuery;
+    // Fetch from question bank via secure RPC (correct_answer hidden until submit)
+    const { data: qbData } = await supabase.rpc("get_question_bank_practice", {
+      _subject_id: selectedSubject === "all" ? null : selectedSubject,
+    });
     if (qbData) {
-      qbData.forEach((q: any) => {
-        allQuestions.push({ id: `qb-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: q.correct_answer, source: "Question Bank", subject_name: q.subjects?.name });
+      (qbData as any[]).forEach((q: any) => {
+        allQuestions.push({ id: `qb-${q.id}`, question_text: q.question_text, option_a: q.option_a, option_b: q.option_b, option_c: q.option_c, option_d: q.option_d, correct_answer: "", source: "Question Bank", subject_name: q.subject_name });
       });
     }
 
@@ -95,11 +95,24 @@ const PracticeQuestions = ({ studentId }: PracticeQuestionsProps) => {
     setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
-  const handleSubmitAll = () => {
+  const handleSubmitAll = async () => {
     const unanswered = questions.filter((q) => !selectedAnswers[q.id]);
     if (unanswered.length > 0) {
       toast.error(`Please answer all questions. ${unanswered.length} unanswered.`);
       return;
+    }
+    // Reveal correct answers for question-bank items via secure RPC
+    const qbIds = questions
+      .filter((q) => q.id.startsWith("qb-") && !q.correct_answer)
+      .map((q) => q.id.replace(/^qb-/, ""));
+    if (qbIds.length > 0) {
+      const { data: graded } = await supabase.rpc("grade_question_bank", { _question_ids: qbIds });
+      if (graded) {
+        const map = new Map<string, string>((graded as any[]).map((g) => [g.id, g.correct_answer]));
+        setQuestions((prev) => prev.map((q) => q.id.startsWith("qb-")
+          ? { ...q, correct_answer: map.get(q.id.replace(/^qb-/, "")) || q.correct_answer }
+          : q));
+      }
     }
     setSubmitted(true);
     toast.success("Answers submitted! Review your results.");
