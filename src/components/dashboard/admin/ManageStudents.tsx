@@ -163,11 +163,11 @@ const ManageStudents = () => {
       }
 
       // Assign class if selected
-      if (formData.classId && data?.user_id) {
+      if (formData.classId && data?.userId) {
         const { error: classErr } = await supabase
           .from("profiles")
           .update({ class_id: formData.classId })
-          .eq("id", data.user_id);
+          .eq("id", data.userId);
         if (classErr) console.error("Class assign error:", classErr);
       }
 
