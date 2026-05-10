@@ -162,6 +162,15 @@ const ManageStudents = () => {
         throw new Error(data.error);
       }
 
+      // Assign class if selected
+      if (formData.classId && data?.user_id) {
+        const { error: classErr } = await supabase
+          .from("profiles")
+          .update({ class_id: formData.classId })
+          .eq("id", data.user_id);
+        if (classErr) console.error("Class assign error:", classErr);
+      }
+
       // Send credentials email
       const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
         body: {
@@ -183,7 +192,7 @@ const ManageStudents = () => {
       });
       setShowCredentialsDialog(true);
 
-      setFormData({ email: "", fullName: "" });
+      setFormData({ email: "", fullName: "", classId: "" });
       fetchStudents();
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
