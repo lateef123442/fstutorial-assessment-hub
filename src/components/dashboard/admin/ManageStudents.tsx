@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Generate a random password
 const generatePassword = () => {
@@ -33,10 +34,12 @@ interface CreatedCredentials {
 
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     fullName: "",
+    classId: "",
   });
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string }>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,7 +50,21 @@ const ManageStudents = () => {
 
   useEffect(() => {
     fetchStudents();
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => setClasses(data || []));
   }, []);
+
+  const updateStudentClass = async (userId: string, classId: string | null) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ class_id: classId })
+      .eq("id", userId);
+    if (error) {
+      toast.error(error.message || "Failed to update class");
+    } else {
+      toast.success("Class updated");
+      fetchStudents();
+    }
+  };
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -75,16 +92,16 @@ const ManageStudents = () => {
       const studentIds = studentRoles.map(r => r.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, full_name, email, class_id")
         .in("id", studentIds);
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
         toast.error("Failed to load students");
       } else {
-        // Map to expected format
         const formattedStudents = (profiles || []).map(profile => ({
           user_id: profile.id,
+          class_id: profile.class_id,
           profiles: {
             full_name: profile.full_name,
             email: profile.email
@@ -145,6 +162,15 @@ const ManageStudents = () => {
         throw new Error(data.error);
       }
 
+      // Assign class if selected
+      if (formData.classId && data?.userId) {
+        const { error: classErr } = await supabase
+          .from("profiles")
+          .update({ class_id: formData.classId })
+          .eq("id", data.userId);
+        if (classErr) console.error("Class assign error:", classErr);
+      }
+
       // Send credentials email
       const { error: emailError } = await supabase.functions.invoke("send-student-credentials", {
         body: {
@@ -166,7 +192,7 @@ const ManageStudents = () => {
       });
       setShowCredentialsDialog(true);
 
-      setFormData({ email: "", fullName: "" });
+      setFormData({ email: "", fullName: "", classId: "" });
       fetchStudents();
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
@@ -291,6 +317,23 @@ const ManageStudents = () => {
                 )}
               </div>
             </div>
+            <div>
+              <Label htmlFor="classId">Class (optional)</Label>
+              <Select
+                value={formData.classId || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, classId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger id="classId">
+                  <SelectValue placeholder="No class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No class</SelectItem>
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button type="submit" disabled={loading}>
               <Plus className="w-4 h-4 mr-2" />
               Add Student
@@ -322,12 +365,26 @@ const ManageStudents = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-semibold">{student.profiles?.full_name}</p>
                       <p className="text-sm text-muted-foreground">{student.profiles?.email}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select
+                        value={student.class_id || "__none__"}
+                        onValueChange={(v) => updateStudentClass(student.user_id, v === "__none__" ? null : v)}
+                      >
+                        <SelectTrigger className="h-9 w-[180px]">
+                          <SelectValue placeholder="No class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">No class</SelectItem>
+                          {classes.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button size="sm" variant="outline" onClick={() => handleEdit(student)}>
                         <Edit className="w-4 h-4" />
                       </Button>
