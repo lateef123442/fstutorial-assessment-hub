@@ -315,7 +315,23 @@ const ManageStudents = () => {
                 {formErrors.email && (
                   <p className="text-sm text-destructive mt-1">{formErrors.email}</p>
                 )}
-              </div>
+            </div>
+            <div>
+              <Label htmlFor="classId">Class (optional)</Label>
+              <Select
+                value={formData.classId || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, classId: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger id="classId">
+                  <SelectValue placeholder="No class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No class</SelectItem>
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button type="submit" disabled={loading}>
               <Plus className="w-4 h-4 mr-2" />
