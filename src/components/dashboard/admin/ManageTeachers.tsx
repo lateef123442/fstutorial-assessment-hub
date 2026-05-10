@@ -69,10 +69,12 @@ const ManageTeachers = () => {
 
       if (subjectsError) throw subjectsError;
 
-      const { data: teacherClassRows } = await supabase
+      const { data: teacherClassRows, error: tcError } = await supabase
         .from("teacher_classes")
-        .select("teacher_id, class_id, classes(id, name)")
+        .select("teacher_id, class_id")
         .in("teacher_id", teacherIds);
+
+      if (tcError) console.error("Error fetching teacher_classes:", tcError);
 
       // Combine the data
       const combinedData = profiles?.map(profile => ({
