@@ -315,6 +315,7 @@ const ManageStudents = () => {
                 {formErrors.email && (
                   <p className="text-sm text-destructive mt-1">{formErrors.email}</p>
                 )}
+              </div>
             </div>
             <div>
               <Label htmlFor="classId">Class (optional)</Label>
