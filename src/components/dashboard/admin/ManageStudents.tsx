@@ -365,12 +365,26 @@ const ManageStudents = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
                       <p className="font-semibold">{student.profiles?.full_name}</p>
                       <p className="text-sm text-muted-foreground">{student.profiles?.email}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select
+                        value={student.class_id || "__none__"}
+                        onValueChange={(v) => updateStudentClass(student.user_id, v === "__none__" ? null : v)}
+                      >
+                        <SelectTrigger className="h-9 w-[180px]">
+                          <SelectValue placeholder="No class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">No class</SelectItem>
+                          {classes.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Button size="sm" variant="outline" onClick={() => handleEdit(student)}>
                         <Edit className="w-4 h-4" />
                       </Button>
