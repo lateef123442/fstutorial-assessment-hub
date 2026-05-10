@@ -34,10 +34,12 @@ interface CreatedCredentials {
 
 const ManageStudents = () => {
   const [students, setStudents] = useState<any[]>([]);
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     fullName: "",
+    classId: "",
   });
   const [formErrors, setFormErrors] = useState<{ email?: string; fullName?: string }>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -48,7 +50,21 @@ const ManageStudents = () => {
 
   useEffect(() => {
     fetchStudents();
+    supabase.from("classes").select("id, name").order("name").then(({ data }) => setClasses(data || []));
   }, []);
+
+  const updateStudentClass = async (userId: string, classId: string | null) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ class_id: classId })
+      .eq("id", userId);
+    if (error) {
+      toast.error(error.message || "Failed to update class");
+    } else {
+      toast.success("Class updated");
+      fetchStudents();
+    }
+  };
 
   const fetchStudents = async () => {
     setLoading(true);
