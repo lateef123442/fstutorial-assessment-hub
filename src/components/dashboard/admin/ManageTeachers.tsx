@@ -69,10 +69,12 @@ const ManageTeachers = () => {
 
       if (subjectsError) throw subjectsError;
 
-      const { data: teacherClassRows } = await supabase
+      const { data: teacherClassRows, error: tcError } = await supabase
         .from("teacher_classes")
-        .select("teacher_id, class_id, classes(id, name)")
+        .select("teacher_id, class_id")
         .in("teacher_id", teacherIds);
+
+      if (tcError) console.error("Error fetching teacher_classes:", tcError);
 
       // Combine the data
       const combinedData = profiles?.map(profile => ({
@@ -261,7 +263,7 @@ const ManageTeachers = () => {
                               key={tc.class_id}
                               className="inline-flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground rounded-md text-xs"
                             >
-                              {tc.classes?.name || allClasses.find(c => c.id === tc.class_id)?.name || "Class"}
+                              {allClasses.find(c => c.id === tc.class_id)?.name || "Class"}
                               <button
                                 type="button"
                                 aria-label="Remove class"
