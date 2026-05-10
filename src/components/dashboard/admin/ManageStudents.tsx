@@ -92,16 +92,16 @@ const ManageStudents = () => {
       const studentIds = studentRoles.map(r => r.user_id);
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, full_name, email")
+        .select("id, full_name, email, class_id")
         .in("id", studentIds);
 
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
         toast.error("Failed to load students");
       } else {
-        // Map to expected format
         const formattedStudents = (profiles || []).map(profile => ({
           user_id: profile.id,
+          class_id: profile.class_id,
           profiles: {
             full_name: profile.full_name,
             email: profile.email
